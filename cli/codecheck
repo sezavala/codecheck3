@@ -1,0 +1,220 @@
+#!/bin/bash
+
+# Copyright 2006-2025 Cay S. Horstmann
+#
+# This file is part of CodeCheck.
+#
+# CodeCheck is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# CodeCheck is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with CodeCheck.  If not, see <http://www.gnu.org/licenses/>.
+
+# To test a solution, run
+# codecheck problemdir
+
+# To check a submission, run
+# codecheck submissiondir problemdir
+
+# Options:
+# -t text report
+# -j json report
+# -n json report for JavaScript client
+# -s setup report for local JavaScript client
+# -p prints the output instead of launching a browser
+# -q quiet (just prints path to result file)
+# -d debug (prints CodeCheck command)
+# -u Also check student directory (to verify that it will fail)
+# -r remote Docker for comrun server (provide REMOTE_URL)
+# -l local Docker for comrun server
+
+function usage {
+    echo "Usage: `basename $0` [-dpqut] problemdir"
+    echo "       `basename $0` [-dpqt] submissiondir problemdir"
+    echo "       `basename $0` -s [-j] [-n] submissiondir problemdir"
+    exit 1
+}
+
+function grade {
+    if [ "${SUBMISSIONDIR/#\//}" == "$SUBMISSIONDIR" ] ; then SUBMISSIONDIR="$STARTDIR"/"$SUBMISSIONDIR" ; fi
+
+    if [ "${PROBLEMDIR/#\//}" == "$PROBLEMDIR" ] ; then PROBLEMDIR="$STARTDIR"/"$PROBLEMDIR" ; fi
+
+    cd "$SUBMISSIONDIR"
+
+    JOPTS="-Duser.language=en -Duser.country=US -Dcom.horstmann.codecheck -Dcom.horstmann.codecheck.comrun.local=$BASEDIR/../comrun/bin/comrun $JAVA_OPTS"
+    echo $JOPTS
+    
+    if [ ! -z "$DEBUG" ] ; then
+        JOPTS="$JOPTS -Dcom.horstmann.codecheck.debug" 
+        echo LC_ALL=en_US.UTF-8 "$JAVA" $JOPTS -classpath $CLASSPATH com.horstmann.codecheck.checker.Main "$SUBMISSIONDIR" "$PROBLEMDIR" $@
+    fi
+
+    LC_ALL=en_US.UTF-8 "$JAVA" $JOPTS -classpath $CLASSPATH com.horstmann.codecheck.checker.Main "$SUBMISSIONDIR" "$PROBLEMDIR" $@
+}
+
+# Script start
+
+STARTDIR=`pwd`
+BASEDIR=`dirname $0`
+
+COMRUN_USER=$(whoami)
+export COMRUN_USER
+
+# Pick up env settings and set JAVA_HOME
+
+if [ -e $BASEDIR/codecheck.env ] ; then
+    set -o allexport
+    source $BASEDIR/codecheck.env
+    set +o allexport
+fi    
+
+if [[ -z "$JAVA_HOME" ]] ; then
+  JAVA=$(command -v java)
+  if [[ -z "$JAVA" ]] ; then
+    echo Cannot find java executable. Set JAVA_HOME
+    exit
+  fi
+else
+  JAVA="$JAVA_HOME"/bin/java
+  if [[ ! -e $JAVA ]] ; then
+    echo Cannot find $JAVA. Fix JAVA_HOME
+    exit
+  fi
+fi    
+
+# Set classpath
+
+if [ "${BASEDIR/#\//}" == "$BASEDIR" ] ; then BASEDIR="$STARTDIR"/"$BASEDIR" ; fi
+CLASSPATH="$BASEDIR"/../target/\*:"$BASEDIR"/lib/\*
+
+REPORT_TYPE="HTML"
+
+REPORT=report.html
+
+while getopts "cpqdutjnslr" OPTION
+do
+     case $OPTION in
+         p)
+             BROWSER=cat
+             ;;
+         q)
+             BROWSER=echo
+             ;;
+         d)
+             DEBUG=true
+             ;;
+         u)
+             CHECK_STUDENT_DIR=true
+             ;;
+         t)
+             BROWSER=cat
+             REPORT_TYPE="Text"
+             REPORT=report.txt 
+             ;;
+         j)
+             BROWSER="python3 -mjson.tool"
+             REPORT_TYPE="JSON"
+             REPORT=report.json
+             ;;
+         n)
+             BROWSER="python3 -mjson.tool"
+             REPORT_TYPE="NJS"
+             REPORT=report.json
+             ;;
+         s)
+             BROWSER="python3 -mjson.tool"
+             REPORT_TYPE="Setup"
+             REPORT=report.json
+             ;;
+         l)
+           JAVA_OPTS="$JAVA_OPTS -Dcom.horstmann.codecheck.comrun.remote=http://localhost:8080/api/upload"
+           ;;
+         r)
+           if [[ -z $REMOTE_URL ]] ; then
+             echo "Set REMOTE_URL to the URL of the remote comrun server"
+             exit
+           else
+             JAVA_OPTS="$JAVA_OPTS -Dcom.horstmann.codecheck.comrun.remote=${REMOTE_URL}/api/upload"
+           fi
+           ;;
+     esac
+done
+shift $((OPTIND-1))
+
+if [ -z "$BROWSER" ] ; then
+    case "`uname`" in
+      Linux)
+        BROWSER=xdg-open
+        ;;
+      Darwin)
+        BROWSER=open
+        ;;
+    esac
+fi
+
+JAVA_OPTS="$JAVA_OPTS -Dcom.horstmann.codecheck.report=$REPORT_TYPE"
+
+if [[ ! -d "$1" ]] ; then usage; fi
+
+if [[ -z $2 ]] ; then
+  # Check solution
+  PROBLEMDIR=$1
+  shift
+  SUBMISSIONDIR=`mktemp -d /tmp/codecheck.XXXXXXXXXX`
+
+  if [ -e $PROBLEMDIR/solution ] ; then
+      cp -R $PROBLEMDIR/solution/* $SUBMISSIONDIR
+  else
+      cp $PROBLEMDIR/* $SUBMISSIONDIR
+  fi
+  
+  shift
+else
+  # Check student work
+  SUBMISSIONDIR=$1
+  shift
+  PROBLEMDIR=$1
+  shift
+fi
+
+if [ -z "$PROBLEMDIR" ] || [ ! -d "$SUBMISSIONDIR" ] || [ ! -d "$PROBLEMDIR" ]
+then
+    if [ -z "$PROBLEMDIR" ] ; then echo "No problemdir supplied" ; fi
+    if [ ! -d "$SUBMISSIONDIR" ] ; then echo "submissiondir $SUBMISSIONDIR doesn't exist" ; fi
+    if [ ! -d "$PROBLEMDIR" ] ; then echo "problemdir $PROBLEMDIR doesn't exist" ; fi
+    usage
+fi
+
+grade $@
+
+$BROWSER "$SUBMISSIONDIR/$REPORT" 2> /dev/null 
+
+if [ -z "$CHECK_STUDENT_DIR" ] ; then exit ; fi
+
+# Checking student files
+cd "$STARTDIR"
+SUBMISSIONDIR=`mktemp -d /tmp/codecheck.XXXXXXXXXX`
+
+if [ -e $PROBLEMDIR/student ] ; then 
+    cd $PROBLEMDIR/student
+    for f in `find .` ; do 
+      if [ "$f" != "." ] ; then
+          mkdir -p $SUBMISSIONDIR/`dirname $f`
+          cp $f $SUBMISSIONDIR/$f
+          # cp --parents $f $SUBMISSIONDIR
+      fi
+    done
+    cd ../..
+fi  
+
+grade $@
+
+$BROWSER "$SUBMISSIONDIR/$REPORT" 2> /dev/null 

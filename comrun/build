@@ -1,0 +1,22 @@
+JAVA_HOME=/data/apps/jdk-11
+PATH=$JAVA_HOME/bin:$PATH
+CLIENTDIR=/home/cay/projects/codecheck/checker
+DISTDIR=/opt/codecheck
+SERVERDIR=/home/cay/projects/play-codecheck
+BASEDIR=$(dirname $(readlink -f $0))
+
+cd $CLIENTDIR
+ant clean
+if ant dist ; then
+  cd $SERVERDIR
+  if sbt clean dist ; then
+      cd $BASEDIR
+      rm -rf codecheck
+      cp -R /opt/codecheck .
+      cp production.conf codecheck.policy codecheck.env s3.properties codecheck
+      rm -rf play-codecheck
+      unzip $SERVERDIR/target/universal/play-codecheck-1.0-SNAPSHOT.zip
+      mv play-codecheck-1.0-SNAPSHOT play-codecheck
+      docker build --tag codecheck:1.0 .
+  fi
+fi
