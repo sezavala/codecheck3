@@ -22,17 +22,6 @@ public class HTMLReport implements Report {
     private int metaOffset;
     private boolean hidden;
 
-    private static boolean isImage(String filename) {
- 	   return Set.of("png", "gif", "jpg", "jpeg", "bmp").contains(Util.extension(filename));
-    }
-    
-    private static String imageData(String filename, byte[] contents) {
- 	   String extension = Util.extension(filename);
- 	   if (extension.equals("jpg")) extension = "jpeg";
- 	   return "data:image/" + extension + ";base64," + Base64.getEncoder().encodeToString(contents);   
-    }
-
-    
     // TODO: Directory
     public HTMLReport(String title) {
         builder = new StringBuilder();
@@ -202,7 +191,7 @@ public class HTMLReport implements Report {
             out.close();
             builder.append("<p class=\"screencapture\">");
             builder.append("<img alt=\"screen capture\" src=\"");
-            builder.append(imageData(".png", out.toByteArray()));
+            builder.append(Util.imageData(".png", out.toByteArray()));
             builder.append("\"/>");
             builder.append("</p>\n");
         } catch (IOException ex) {
@@ -222,9 +211,9 @@ public class HTMLReport implements Report {
 		caption(fileName);
     	if (hidden) {
     		output("[Hidden]");
-    	} else if (isImage(fileName)) {
+    	} else if (Util.isImageFilename(fileName)) {
     		builder.append("<p><img alt=\"provided image\" src=\"");
-    		builder.append(imageData(fileName, contents));
+    		builder.append(Util.imageData(fileName, contents));
     		builder.append("\"/></p>\n");
     	} else { 
     		try {

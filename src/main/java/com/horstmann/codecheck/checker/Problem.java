@@ -528,7 +528,7 @@ whitespace2 pseudocode2
             int i = line.indexOf(start);
             int j = line.lastIndexOf(end);
             if (i < 0 || j < 0) result.append(line);
-            else result.append(line.substring(0, i) + line.substring(i + start.length(), j) + line.substring(j + end.length()));
+            else result.append(line.substring(0, i) + line.substring(i + start.length(), j).stripLeading() + line.substring(j + end.length()));
         }
         return result.toString();
     }
@@ -557,6 +557,8 @@ whitespace2 pseudocode2
             if (ann.key.equals("PSEUDO")) {
                 int ws = lengthOfWhitespacePrefix(lines[i]);
                 pseudoLines.add(lines[i].substring(0, ws) + ann.args);
+                lines[i] = ann.before;
+            } else if (ann.key.equals("SUB")) {
                 lines[i] = ann.before;
             }
         }           
@@ -657,7 +659,7 @@ whitespace2 pseudocode2
                     else {
                         line = lines[i];
                         ann = Annotations.parse(line, start, end);
-                        if (ann.isValid && !ann.key.equals("PSEUDO")) {
+                        if (ann.isValid && !Set.of("PSEUDO", "SUB").contains(ann.key)) {
                             if (Set.of("FIXED", "OR", "TILE").contains(ann.key)) { 
                                 done = true; 
                                 i--;
@@ -711,7 +713,7 @@ whitespace2 pseudocode2
             Path path = entry.getKey();
             if (language.isSource(path) && !solutionFiles.containsKey(path) && !annotations.getHidden().contains(path) || isTextFile(path)) {
                 String contents = new String(entry.getValue(), StandardCharsets.UTF_8);
-                data.useFiles.put(path.toString(), removePseudoComments(contents));
+                data.useFiles.put(path.toString(), language.isSource(path) ? removePseudoComments(contents) : contents);
             }
         }
         if (oldStyle) {

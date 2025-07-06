@@ -68,8 +68,10 @@ public class LTIAssignmentController {
     @Produces(MediaType.TEXT_HTML)
     public Response viewSubmissions(@CookieParam("ccauth") String ccauth, @QueryParam("resourceID") String resourceID) throws IOException {
         try {
+            // TODO No deed to pass resourceID
             Map<String, Object> auth = jwt.verify(ccauth);
-            // TODO Verify that instructor is authorized to view this assignment
+            if (!resourceID.equals(auth.get("resourceID")))
+                return Response.status(Response.Status.UNAUTHORIZED).entity("Unauthorized").build();
             String result = assignmentService.viewSubmissions(resourceID);
             return Response.ok(result).build();
         } catch (ServiceException e) {
@@ -82,8 +84,10 @@ public class LTIAssignmentController {
     @Produces(MediaType.TEXT_HTML)
     public Response viewSubmission(@CookieParam("ccauth") String ccauth, @QueryParam("resourceID") String resourceID, @QueryParam("workID") String workID) throws IOException {
         try {
+            // TODO No deed to pass resourceID
             Map<String, Object> auth = jwt.verify(ccauth);
-            // TODO Verify that instructor is authorized to view this assignment
+            if (!resourceID.equals(auth.get("resourceID")))
+                return Response.status(Response.Status.UNAUTHORIZED).entity("Unauthorized").build();
             String result = assignmentService.viewSubmission(resourceID, workID);
             return Response.ok(result).build();
         } catch (ServiceException e) {
@@ -96,11 +100,11 @@ public class LTIAssignmentController {
     @Produces(MediaType.TEXT_HTML)
     public Response editAssignment(@CookieParam("ccauth") String ccauth, @PathParam("assignmentID") String assignmentID) throws IOException {
         try {
+            // TODO No deed to pass assignmentID
             Map<String, Object> auth = jwt.verify(ccauth);
-            String editKey = auth.get("user").toString();
-            // TODO How do we know from the assignment ID that this user is authorized to edit it?
-            if (!assignmentID.equals(auth.get("assignment"))) throw new ServiceException("Not authorized");
-            String result = assignmentService.editAssignment(assignmentID, editKey);
+            if (!assignmentID.equals(assignmentService.assignmentOfResource(auth.get("resourceID").toString())))
+                return Response.status(Response.Status.UNAUTHORIZED).entity("Unauthorized").build();
+            String result = assignmentService.editAssignment(assignmentID, auth.get("editKey").toString());
             return Response.ok(result).build();
         } catch (ServiceException e) {
             return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
@@ -119,10 +123,12 @@ public class LTIAssignmentController {
             String result = assignmentService.launch(url, assignmentID, postParams);
             if (services.LTIAssignment.isInstructor(postParams)) {
                 String toolConsumerID = Util.getParam(postParams, "tool_consumer_instance_guid");
-                String userID = Util.getParam(postParams, "user_id");
-                String userLMSID = toolConsumerID + "/" + userID;
+                String resourceID = toolConsumerID + "/" +
+                        Util.getParam(postParams, "context_id") + " " + assignmentID;
+                String editKey = toolConsumerID + "/" +
+                        Util.getParam(postParams, "user_id");
 
-                String ccauth = jwt.generate(Map.of("assignment", assignmentID, "user", userLMSID));
+                String ccauth = jwt.generate(Map.of("resourceID", resourceID, "editKey", editKey));
                 return Response.ok(result).cookie(HttpUtil.buildCookie("ccauth", ccauth)).build();
             } else { // Student
                 return Response.ok(result).build();
@@ -146,8 +152,10 @@ public class LTIAssignmentController {
     @Produces(MediaType.APPLICATION_JSON)
     public Response allSubmissions(@CookieParam("ccauth") String ccauth, @QueryParam("resourceID") String resourceID) throws IOException {
         try {
+            // TODO No deed to pass resourceID
             Map<String, Object> auth = jwt.verify(ccauth);
-            // TODO Verify that instructor is authorized for this assignment
+            if (!resourceID.equals(auth.get("resourceID")))
+                return Response.status(Response.Status.UNAUTHORIZED).entity("Unauthorized").build();
             ObjectNode result = assignmentService.allSubmissions(resourceID);
             return Response.ok(result).build();
         } catch (ServiceException e) {
@@ -175,6 +183,20 @@ public class LTIAssignmentController {
     public Response sendScore(JsonNode params) throws IOException, OAuthException, NoSuchAlgorithmException, URISyntaxException {
         try {
             ObjectNode result = assignmentService.sendScore(params);
+            return Response.ok(result).build();
+        } catch (ServiceException e) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
+        }
+    }
+
+    @POST
+    @jakarta.ws.rs.Path("/lti/saveComment")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response saveComment(@CookieParam("ccauth") String ccauth, JsonNode params) throws IOException, OAuthException, NoSuchAlgorithmException, URISyntaxException {
+        try {
+            Map<String, Object> auth = jwt.verify(ccauth);
+            ObjectNode result = assignmentService.saveComment(auth.get("resourceID").toString(), params);
             return Response.ok(result).build();
         } catch (ServiceException e) {
             return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();

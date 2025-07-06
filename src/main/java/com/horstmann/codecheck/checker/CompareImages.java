@@ -11,12 +11,6 @@ public class CompareImages {
     private BufferedImage image1;
     private BufferedImage image2;
 
-    public static boolean isImage(String name) {
-        if (name == null) return false;
-        String extension = name.substring(name.lastIndexOf(".") + 1).toLowerCase();
-        return Arrays.asList(ImageIO.getReaderFileSuffixes()).contains(extension);
-    }
-
     public CompareImages(byte[] firstImage) {
         try {
             image1 = readImage(firstImage);

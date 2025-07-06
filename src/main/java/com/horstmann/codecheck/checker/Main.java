@@ -297,7 +297,7 @@ public class Main {
             Map<String, String> contents = new HashMap<>();
             Map<String, CompareImages> imageComp = new HashMap<>();
             for (String f : outFiles) {
-                if (CompareImages.isImage(f)) {
+                if (Util.isImageFilename(f)) {
                     imageComp.put(f, new CompareImages(plan.getOutputBytes(submissionRunID, f)));
                 }
                 else
@@ -306,7 +306,7 @@ public class Main {
                     
             if (!runSolution) { 
                 for (String f : outFiles) {
-                    if (CompareImages.isImage(f)) {
+                    if (Util.isImageFilename(f)) {
                         CompareImages ci = imageComp.get(f);
                         report.image(null, f, ci.first());
                     }
@@ -318,7 +318,7 @@ public class Main {
             } 
 
             for (String f : outFiles) {
-                if (CompareImages.isImage(f)) {
+                if (Util.isImageFilename(f)) {
                     CompareImages ic = imageComp.get(f);
                     try {
                         ic.setOtherImage(plan.getOutputBytes(solutionRunID, f));

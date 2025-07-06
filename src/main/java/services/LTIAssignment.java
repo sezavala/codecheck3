@@ -26,6 +26,7 @@ public class LTIAssignment {
     @Inject StorageConnector storageConn;
     @Inject LTI lti;
     @Inject JWT jwt;
+    @Inject Assignment assignmentService;
 
     public String config(String host) {
         if (host.endsWith("/")) host = host.substring(0, host.length() - 1);
@@ -64,7 +65,7 @@ public class LTIAssignment {
 </cartridge_basiclti_link>    		
 """;
 
-    private String assignmentOfResource(String resourceID) throws IOException {
+    public String assignmentOfResource(String resourceID) throws IOException {
         if (resourceID.contains(" ") ) {
             int i = resourceID.lastIndexOf(" ");
             return resourceID.substring(i + 1);
@@ -105,6 +106,7 @@ public class LTIAssignment {
         return Assignment.editAssignmentHTML.formatted(assignmentNode.toString(), false /* askForDeadline */);
     }
 
+    // TODO Dependency on codecheck URL
     private static String assignmentIDifAssignmentURL(String url) {
         if (url.contains("\n")) return null;
         Pattern pattern = Pattern.compile("https?://codecheck.[a-z]+/(private/)?(a|viewA)ssignment/([a-z0-9]+)($|/).*");
@@ -116,7 +118,7 @@ public class LTIAssignment {
         String problemText = params.get("problems").asText().trim();
         String assignmentID = assignmentIDifAssignmentURL(problemText);
         if (assignmentID == null) {
-            ((ObjectNode) params).set("problems", services.Assignment.parseAssignment(problemText));
+            ((ObjectNode) params).set("problems", assignmentService.parseAssignment(problemText));
 
             assignmentID = params.get("assignmentID").asText();
             ObjectNode assignmentNode = storageConn.readAssignment(assignmentID);
@@ -189,7 +191,9 @@ public class LTIAssignment {
         if (assignmentNode == null) throw new ServiceException("Assignment not found");
         ArrayNode groups = (ArrayNode) assignmentNode.get("problems");
         assignmentNode.set("problems", groups.get(Math.abs(workID.hashCode()) % groups.size()));
-        assignmentNode.put("saveCommentURL", "/saveComment");
+        assignmentNode.put("saveCommentURL", "/lti/saveComment");
+        String comment = storageConn.readComment(resourceID, workID);
+        assignmentNode.put("comment", comment);
         assignmentNode.remove("editKey");
         return Assignment.workAssignmentHTML.formatted(assignmentNode.toString(), work, workID, "undefined");
     }
@@ -237,18 +241,19 @@ public class LTIAssignment {
 
         String toolConsumerID = Util.getParam(postParams, "tool_consumer_instance_guid");
         String contextID = Util.getParam(postParams, "context_id");
-        String resourceLinkID = Util.getParam(postParams, "resource_link_id");
 
         String userLMSID = toolConsumerID + "/" + userID;
 
-        ObjectNode ltiNode = JsonNodeFactory.instance.objectNode();
         // TODO: In order to facilitate search by assignmentID, it would be better if this was the other way around
         String resourceID = toolConsumerID + "/" + contextID + " " + assignmentID;
 
+        /*
         // TODO: When can we drop this?
+        String resourceLinkID = Util.getParam(postParams, "resource_link_id");
         String legacyResourceID = toolConsumerID + "/" + contextID + "/" + resourceLinkID;
         String legacy = storageConn.readLegacyLTIResource(legacyResourceID);
         if (legacy != null) resourceID = legacyResourceID;
+        */
 
         if (assignmentID == null) {
             throw new ServiceException("No assignment ID");
@@ -280,6 +285,7 @@ public class LTIAssignment {
             String lisResultSourcedID = Util.getParam(postParams, "lis_result_sourcedid");
             String oauthConsumerKey = Util.getParam(postParams, "oauth_consumer_key");
 
+            ObjectNode ltiNode = JsonNodeFactory.instance.objectNode();
             if (Util.isEmpty(lisOutcomeServiceURL))
                 throw new ServiceException("lis_outcome_service_url missing.");
             else
@@ -302,6 +308,8 @@ public class LTIAssignment {
                 workNode.remove("workID");
                 work = workNode.toString();
             }
+            String comment = storageConn.readComment(resourceID, userID);
+            assignmentNode.put("comment", comment);
 
             assignmentNode.put("isStudent", true);
             assignmentNode.put("editKeySaved", true);
@@ -404,5 +412,20 @@ public class LTIAssignment {
         String outcome = lti.passbackGradeToLMS(outcomeServiceUrl, sourcedID, score, oauthConsumerKey);
         // org.imsglobal.pox.IMSPOXRequest.sendReplaceResult(outcomeServiceUrl, oauthConsumerKey, getSharedSecret(oauthConsumerKey), sourcedId, "" + score);
         result.put("outcome", outcome);
+    }
+
+    public ObjectNode saveComment(String resourceID, JsonNode requestNode) throws IOException {
+        ObjectNode result = JsonNodeFactory.instance.objectNode();
+        String workID = requestNode.get("workID").asText();
+        String comment = requestNode.get("comment").asText();
+        // Note: The assignmentID in the request node is not useful
+
+        ObjectNode commentNode = JsonNodeFactory.instance.objectNode();
+        commentNode.put("assignmentID", resourceID);
+        commentNode.put("workID", workID);
+        commentNode.put("comment", comment);
+        storageConn.writeComment(commentNode);
+        result.put("comment", comment);
+        return result;
     }
 }

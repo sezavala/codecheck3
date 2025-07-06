@@ -23,11 +23,16 @@ public class JWT {
         key = Keys.hmacShaKeyFor(
                 config.getString("com.horstmann.codecheck.jwt.secret.key").getBytes());
     }
+
+    // TODO: Duration.ofMinutes(30) would be better, but doesn't work when baked into pages
+    // (LTIAssignment.launch, contrast with LTIAssignmentController.launch which issues a cookie)
+    // Maybe have the services that those pages call (saveWork, lti/saveWork, lti/sendScore, lti/saveComment)
+    // refresh the token?
     public String generate(Map<String, Object> claims) {
         String jwt = Jwts.builder()
             .claims(claims)
             .issuedAt(Date.from(Instant.now()))
-            .expiration(Date.from(Instant.now().plus(Duration.ofMinutes(30))))
+            .expiration(Date.from(Instant.now().plus(Duration.ofDays(7))))
             .signWith(key)
             .compact();
         return jwt;

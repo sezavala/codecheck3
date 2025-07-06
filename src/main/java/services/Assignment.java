@@ -10,7 +10,7 @@ package services;
  The "problem key" is normally the problem URL. However, for interactive or CodeCheck 
  problems in the textbook repo, it is the qid of the single question in the problem.
 
-assignmentID // non-LTI: courseID? + assignmentID, LTI: toolConsumerID/courseID + assignment ID, Legacy tool consumer ID/course ID/resource ID  
+assignmentID // non-LTI: courseID? + assignmentID, LTI: toolConsumerID/courseID + ltiResourceID, Legacy toolConsumerID/courseID/ltiResourceID
   
 Assignment parsing format:
  
@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import controllers.Config;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -41,6 +42,7 @@ import com.horstmann.codecheck.checker.Util;
 @ApplicationScoped
 public class Assignment {
     @Inject StorageConnector storageConn;
+    @Inject Config config;
 
     /*
      * assignmentID == null: new assignment
@@ -151,8 +153,7 @@ public class Assignment {
                 + workID + "\", problems: {} }";
         assignmentNode.put("comment", comment);
 
-        String lti = "undefined";
-        if (isStudent) {                        
+        if (isStudent) {
             String returnToWorkURL = prefix + "/private/resume/" + assignmentID + "/" + ccid + "/" + editKey;
             assignmentNode.put("returnToWorkURL", returnToWorkURL); 
             assignmentNode.put("editKeySaved", editKeySaved);
@@ -174,6 +175,7 @@ public class Assignment {
                 assignmentNode.put("cloneURL", cloneURL);
             }
         }
+        String lti = "undefined";
         return workAssignmentHTML.formatted(assignmentNode.toString(), work, ccid, lti);
     }
 	
@@ -224,19 +226,19 @@ public class Assignment {
      <p id="deadlineLocal" style="font-weight: bold;"></p>
      <p id="deadlineUTC" style="font-weight: bold;"></p>
 	   <p id="savedcopy"><input type="checkbox"/>  I saved a copy of the private URL</p>
-     <div id="student_comment_div">
-       <label>Feedback from your instructor:</label><br>
-       <textarea readonly style="display: block; width: 80%%; font-size: 14px; font-weight: 500;" id="student_comment" rows="10"></textarea>
-     </div>
    </div>
    <div id="studentLTIInstructions">
      <p>You are viewing this assignment from a Learning Management System (LMS)</p>
      <p>Your LMS ID: <span class="ccid"></span></p>
      <p>Wrong score in LMS? <span id="submitLTIButton"></span></p>
    </div>
-<p class="message" id="response"></p>
-<p id="abovebuttons">Click on the buttons below to view all parts of the assignment.</p>
-</details>
+   <div id="student_comment_div">
+     <label>Feedback from your instructor:</label><br>
+     <textarea readonly style="display: block; width: 80%%; font-size: 14px; font-weight: 500;" id="student_comment" rows="10"></textarea>
+   </div>
+  <p class="message" id="response"></p>
+  <p id="abovebuttons">Click on the buttons below to view all parts of the assignment.</p>
+  </details>
 </body>
 </html>    		
 """;
@@ -330,8 +332,19 @@ public class Assignment {
         return (ObjectNode) params;
     }
 
+    public String qidURL(String qid) {
+        String patterns = config.getString("com.horstmann.codecheck.qid.patterns");
+        if (qid.matches("[a-zA-Z0-9_]+(-[a-zA-Z0-9_]+)*")) {
+            for (String pattern : patterns.split(",")) {
+                String problemURL = pattern.formatted(qid);
+                if (Util.exists(problemURL))
+                    return problemURL;
+            }
+        }
+        return null;
+    }
     
-    public static ArrayNode parseAssignment(String assignment) {
+    public ArrayNode parseAssignment(String assignment) {
         if (assignment == null || assignment.trim().isEmpty()) 
             throw new ServiceException("No assignments");
         ArrayNode groupsNode = JsonNodeFactory.instance.arrayNode();
@@ -362,15 +375,14 @@ public class Assignment {
                     else
                         problemURL = problemDescriptor;                    
                 }   
-                else if (problemDescriptor.matches("[a-zA-Z0-9_]+(-[a-zA-Z0-9_]+)*")) { 
-                    qid = problemDescriptor;
-                    problemURL = "https://www.interactivities.ws/" + problemDescriptor + ".xhtml";
-                    if (Util.exists(problemURL))
+                else {
+                    problemURL = qidURL(problemDescriptor);
+                    if (problemURL != null) {
+                        qid = problemDescriptor;
                         checked = true;
-                    else
-                        problemURL = "https://codecheck.it/files?repo=wiley&problem=" + problemDescriptor;                                                          
+                    }
+                    else throw new ServiceException("Bad problem: " + problemDescriptor);
                 }
-                else throw new ServiceException("Bad problem: " + problemDescriptor);
                 if (!checked && !Util.exists(problemURL))
                     throw new ServiceException("Cannot find " + problemDescriptor);             
                 problem.put("URL", problemURL);
@@ -387,6 +399,8 @@ public class Assignment {
                     if (!title.isEmpty())
                         problem.put("title", title);
                 }
+                // TODO A user had 100 120 80 0 as percentages, without a %
+                // Fix this in the future by putting up an error if all the titles are numbers, which surely isn't what people wanted.
                 group.add(problem);
             }
             groupsNode.add(group);
@@ -471,7 +485,7 @@ public class Assignment {
         commentNode.put("comment", comment);
         storageConn.writeComment(commentNode);
         result.put("comment", comment);
-        result.put("refreshURL", "/private/submission/" + assignmentID + "/" + workID);
+        //result.put("refreshURL", "/private/submission/" + assignmentID + "/" + workID);
         return result;
     } 
 }

@@ -15,6 +15,9 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLDecoder;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.CharacterCodingException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
@@ -26,19 +29,9 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.Scanner;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -50,6 +43,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import javax.imageio.ImageIO;
 
 public class Util {
     private static Random generator = new Random();
@@ -101,6 +96,17 @@ public class Util {
     public static String truncate(String str, int maxlen) {
         if (str.length() > maxlen) return str.substring(0, maxlen - 3) + "...";
         else return str;
+    }
+
+    // Reject control characters other than white space (\n \r \t)
+    private static Pattern CONTROL = Pattern.compile("[\\p{IsControl}&&\\S]");
+    public static boolean isText(byte[] bytes) {
+        try {
+            CharBuffer chars = StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes));
+            return !CONTROL.matcher(chars).find();
+        } catch (CharacterCodingException e) {
+            return false;
+        }
     }
 
     // Paths
@@ -213,7 +219,18 @@ public class Util {
             }
         });
     }
-    
+
+    public static boolean isImageFilename(String filename) {
+        if (filename == null) return false;
+        return Arrays.asList(ImageIO.getReaderFileSuffixes()).contains(extension(filename));
+    }
+
+    public static String imageData(String filename, byte[] contents) {
+        String extension = extension(filename);
+        if (extension.equals("jpg")) extension = "jpeg";
+        return "data:image/" + extension + ";base64," + Base64.getEncoder().encodeToString(contents);
+    }
+
     // Stack traces, process, etc.
 
     public static String getStackTrace(Throwable t) {

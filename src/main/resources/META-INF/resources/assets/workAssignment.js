@@ -60,10 +60,12 @@ window.addEventListener('DOMContentLoaded', () => {
   
   function adjustDocHeight(iframe, newHeight) {
     // console.log({frame: iframeKey.get(iframe), oldHeight: iframe.scrollHeight, newHeight })
+    /*
     if ('chrome' in window) { // https://stackoverflow.com/questions/4565112/javascript-how-to-find-out-if-the-user-browser-is-chrome
       const CHROME_FUDGE = 32 // to prevent scroll bars in Chrome
       newHeight += CHROME_FUDGE
 	}
+     */
     if (iframe.scrollHeight < newHeight)
       iframe.style.height = newHeight + 'px'
   }
@@ -200,13 +202,13 @@ window.addEventListener('DOMContentLoaded', () => {
   
   window.addEventListener("message", event => {
     let iframe = sendingIframe(event)
-    if (event.data.query === 'docHeight') 
+    if (event.data.query === 'docHeight') // TODO: Legacy
       adjustDocHeight(iframe, event.data.param.docHeight)
-    else if (event.data.query === 'retrieve') {
+    else if (event.data.query === 'retrieve') {  // TODO: Legacy
       const state = getStateOfProblem(iframe)      
       iframe.contentWindow.postMessage({ request: event.data, param: state }, '*')
     }
-    else if (event.data.query === 'send') 
+    else if (event.data.query === 'send')  // TODO: Legacy
       sendScoreAndState(iframe, event.data.param.score, event.data.param.state)
     else if (event.data.subject === 'lti.frameResize')
       adjustDocHeight(iframe, event.data.height)

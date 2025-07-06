@@ -5,6 +5,7 @@ import jakarta.enterprise.context.RequestScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.*;
+import services.Upload;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -44,6 +45,7 @@ public class UploadController {
                 }
                 n++;
             }
+
             String response = uploadService.checkAndSaveProblem(HttpUtil.prefix(uriInfo, headers),
                     problem, problemFiles, editKey);
             return Response.ok(response).build();
@@ -62,7 +64,7 @@ public class UploadController {
     }
 
     @POST
-    @jakarta.ws.rs.Path("/uploadProblem/{problem}/{editKey}")
+    @jakarta.ws.rs.Path("/editedProblem/{problem}/{editKey}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.TEXT_HTML)
     public Response uploadProblem(@PathParam("problem") String problem, @PathParam("editKey") String editKey,

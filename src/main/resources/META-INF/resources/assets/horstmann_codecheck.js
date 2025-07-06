@@ -822,26 +822,42 @@ window.addEventListener('load', async function () {
         filenameDiv.textContent = directoryPrefix + fileName
         fileObj.appendChild(filenameDiv)
         fileObj.appendChild(editorDiv)
-        const MAX_LINES = 200
-        const lines =  text.split(/\n/).length            
-        editor.setOption('maxLines', Math.min(lines, MAX_LINES))
         setupAceEditor(editorDiv, editor, fileName, /*readonly*/ true)
         form.appendChild(fileObj)
 
+        const MAX_LINES = 200
+        const lines =  text.split(/\n/).length
         if (lines > MAX_LINES) {
+          editor.setOptions({
+            minLines: MAX_LINES,
+            maxLines: MAX_LINES
+          })
+          editor.resize()
           const viewButton = createButton('hc-command', _('Expand'), function() {
 			if (editor.getOption('maxLines') > MAX_LINES) {
-                editor.setOption('maxLines', MAX_LINES)
-                editor.resize()               
-                viewButton.innerHTML = _('Expand')
+              editor.setOptions({
+                minLines: MAX_LINES,
+                maxLines: MAX_LINES
+              })
+              editor.resize()
+              viewButton.innerHTML = _('Expand')
             }
             else {
-                editor.setOption('maxLines', lines)
-                editor.resize()          
-                viewButton.innerHTML = _('Collapse')
+              editor.setOptions({
+                minLines: lines,
+                maxLines: lines
+              })
+              editor.resize()
+              viewButton.innerHTML = _('Collapse')
             }
           })
           form.appendChild(viewButton)
+        } else {
+          editor.setOptions({
+            minLines: lines,
+            maxLines: lines
+          })
+          editor.resize()
         }
       }  
       

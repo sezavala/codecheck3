@@ -1,5 +1,6 @@
 package services;
 
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
@@ -82,7 +83,9 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 @ApplicationScoped
 public class StorageConnector {
+    @Inject Assignment assignmentService;
     private StorageConnection delegate;
+    @Inject Config config;
 
     @Inject public StorageConnector(Config config) {
         String type = "local";
@@ -106,7 +109,45 @@ public class StorageConnector {
     }
 
     public ObjectNode readAssignment(String assignmentID) throws IOException {
-        return delegate.readAssignment(assignmentID);
+        ObjectNode assignmentNode = delegate.readAssignment(assignmentID);
+        /*
+        TODO: Eventually remove
+        This only relates to problems with qid which used to be stored at different URLs. These are rewritten
+        to the current URLs (www.interactivities.ws -> horstmann.com/interactivities)
+         */
+        if (assignmentNode == null) return null;
+        String legacyPrefixes = config.getString("com.horstmann.codecheck.qid.legacyPrefixes");
+        if (legacyPrefixes != null) {
+            boolean rewrite = false;
+            ArrayNode groups = (ArrayNode) assignmentNode.get("problems");
+            for (int i = 0; i < groups.size(); i++) {
+                ArrayNode group = (ArrayNode) groups.get(i);
+                for (int j = 0; j < group.size(); j++) {
+                    ObjectNode problem = (ObjectNode) group.get(j);
+                    String problemURL = problem.get("URL").asText();
+                    if (problem.has("qid")) {
+                        boolean isLegacy = false;
+                        for (String p : legacyPrefixes.split(",")) {
+                            if (problemURL.startsWith(p)) {
+                                isLegacy = true;
+                            }
+                        }
+                        if (isLegacy) {
+                            String qid = problem.get("qid").asText();
+                            String newURL = assignmentService.qidURL(qid);
+                            if (newURL != null) {
+                                problem.put("URL", newURL);
+                                rewrite = true;
+                            }
+                        }
+                    }
+                }
+            }
+            if (rewrite) {
+                delegate.writeAssignment(assignmentNode);
+            }
+        }
+        return assignmentNode;
     }
 
     public String readLegacyLTIResource(String resourceID) throws IOException {
@@ -172,36 +213,79 @@ interface StorageConnection {
 }
 
 /*
+ CodeCheck IDs:
+   course ID = potential future unique ID for a course
+     (not currently implemented)
+   assignment ID = the unique ID for the CodeCheck assignment
+     (shared in LTI courses and potentially in non-LTI courses if we add a course feature)
+   problem ID = the unique ID of a problem (a URL or a qid)
+
+ Non-LTI IDs
+   ccid = cookie of student
+   editKey = edit key of student
+
+ LTI IDs from LTI launch:
+   user_id
+   tool_consumer_instance_guid = server instance
+   context_id = course in server
+   resource_link_id
+
+ ccauth JWT token:
+   resourceID: see assignmentID below
+   editKey: tool_consumer_instance_guid/user_id
+
+ LTI IDs in JWT (TODO: Use token instead)
+   resourceID: see assignmentID below
+   userID: see workID below
+
  Tables:
 
  CodeCheckAssignment
-   assignmentID [partition key] // non-LTI: courseID? + assignmentID, LTI: toolConsumerID/courseID + assignment ID, Legacy tool consumer ID/course ID/resource ID
+   assignmentID [partition key] - the CodeCheck assignment ID
    deadline (an ISO 8601 string like "2020-12-01T23:59:59Z")
-   editKey // LTI: tool consumer ID + user ID
+   editKey // LTI: tool_consumer_instance_guid/user_id
    problems
      array of // One per group
        array of { URL, qid?, weight } // qid for book repo
 
  CodeCheckLTIResources (Legacy)
-   resourceID [primary key] // LTI tool consumer ID + course ID + resource ID
+   resourceID [primary key] // tool_consumer_instance_guid/context_id/resource_link_id
    assignmentID
 
  CodeCheckWork is a map from problem keys to scores and states. It only stores the most recent version.
 
+ CodeCheckWork and CodeCheckComments use the following confusingly named keys
+   assignmentID (not a great name--is assignment in context, use variable name resourceID in code)
+     non-LTI: courseID? + assignment ID,
+     LTI: tool_consumer_instance_guid/context_id + assignment ID, Legacy tool_consumer_instance_guid/context_id/resource_link_id
+   workID (not a great name--identifies authenticated user in context, use variable name userID in code)
+     non-LTI: ccid/editKey
+     LTI: user_id
+
  CodeCheckWork
-   assignmentID [primary key]
-   workID [sort key] // non-LTI: ccid/editKey, LTI: userID
+   assignmentID [primary key] (see above)
+   workID [sort key] (see above)
    problems
      map from URL/qids to { state, score }
    submittedAt
    tab
 
+CodeCheckComments
+   assignmentID [primary key] (see above)
+   workID [sort key] (see above)
+   comment
+
+   (This is a separate table from CodeCheckWork because we can't guarantee atomic updates if a student happens to update their work while the instructor updates a comment)
+   TODO: In SQL, don't need separate table
+
  CodeCheckSubmissions is an append-only log of all submissions of a single problem.
  TODO: Only LTIProblem reads from it, so there may not be any benefit saving from assignment, and one could just keep the latest
 
  CodeCheckSubmissions
-   submissionID [partition key] // non-LTI: courseID? + assignmentID + problemKey + ccid/editKey , LTI: toolConsumerID/courseID + assignmentID + problemID + userID
-     // either way, that's resource ID + workID + problem key
+   submissionID [partition key]
+     non-LTI: courseID? + assignment ID + problemID + ccid/editKey
+     LTI: tool_consumer_instance_guid/context_id + assignment ID + user_id + problem ID
+     // either way, that's the info in assignmentID + workID + problem ID
    submittedAt [sort key]
    state: as string, not JSON
    score
@@ -213,14 +297,6 @@ interface StorageConnection {
  CodeCheckLTICredentials
    oauth_consumer_key [primary key]
    shared_secret
-
-CodeCheckComments
-   assignmentID [partition key] // non-LTI: courseID? + assignmentID, LTI: toolConsumerID/courseID + assignment ID, Legacy tool consumer ID/course ID/resource ID
-   workID [sort key] // non-LTI: ccid/editKey, LTI: userID
-   comment
-
-   (This is a separate table from CodeCheckWork because we can't guarantee atomic updates if a student happens to update their work while the instructor updates a comment)
-
 */
 
 class AWSStorageConnection implements StorageConnection {

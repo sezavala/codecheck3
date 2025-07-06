@@ -7,11 +7,12 @@ while (!done) {
   if (deleteButton == null) 
 	done = true
   else {
+    const index = i
     deleteButton.addEventListener('click',
 	    function() {
-	      document.getElementById('filename' + i).setAttribute('value', '')
-	      document.getElementById('contents' + i).innerHTML = ''
-	      document.getElementById('item' + i).style.display = 'none'
+	      document.getElementById('filename' + index).setAttribute('value', '')
+	      document.getElementById('contents' + index).innerHTML = ''
+	      document.getElementById('item' + index).style.display = 'none'
 	    })
 	  i++
 	}

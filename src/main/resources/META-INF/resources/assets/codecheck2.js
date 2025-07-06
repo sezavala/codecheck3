@@ -113,20 +113,31 @@ document.addEventListener('DOMContentLoaded', function () {
     window.addEventListener('message', receiveMessage, false);
 
     let docHeight = 0  
+    let docWidth = 0  
     function sendDocHeight() {
       //window.scrollTo(0, 0)
       //TODO why? it messes with Ace editor when iframe isn't resized
+
+      // document.body.scrollWidth/Height can be different from
+      // document.documentElement.scrollWidth/Height
+      // See https://www.w3.org/TR/2016/WD-cssom-view-1-20160317/#dom-element-clientwidth
+      // We report the width/height without any scroll bar when document.compatMode
+      // is "CSS1Compat" (i.e. not "quirks")
+      
       const SEND_DOCHEIGHT_DELAY = 100
       setTimeout(() => { 
-        let newDocHeight = document.documentElement.scrollHeight + document.documentElement.offsetTop
-        if (docHeight != newDocHeight) {
+        const newDocHeight = document.documentElement.scrollHeight + document.documentElement.offsetTop 
+        const newDocWidth = document.documentElement.scrollWidth + document.documentElement.offsetLeft
+
+        if (docHeight !== newDocHeight || docWidth !== newDocWidth) {
           docHeight = newDocHeight
+          docWidth = newDocWidth
           // const message = { query: 'docHeight', param: { docHeight } }
           const message = {
 			subject: 'lti.frameResize', 
             message_id: horstmann_config.generateUUID(),
             height: newDocHeight,
-            width: document.documentElement.scrollWidth + document.documentElement.offsetLeft 
+            width: newDocWidth 
 		  }
           window.parent.postMessage(message, '*' )
         } 

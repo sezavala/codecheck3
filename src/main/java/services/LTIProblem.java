@@ -14,6 +14,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import controllers.Config;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import javax.script.ScriptException;
@@ -30,7 +31,9 @@ public class LTIProblem {
     @Inject StorageConnector storageConn;
     @Inject LTI lti;
     @Inject CodeCheck codeCheck;
-    
+    @Inject Config config;
+    @Inject Assignment assignmentService;
+
     private ObjectNode ltiNode(String url, Map<String, String[]> postParams) {
         if (!lti.validate(url, postParams)) throw new ServiceException("Failed OAuth validation");
         
@@ -94,10 +97,9 @@ public class LTIProblem {
     public String launch(String url, String qid, Map<String, String[]> postParams) throws IOException {    
         ObjectNode ltiNode = ltiNode(url, postParams);
         
-        // TODO: What about CodeCheck qids?
         if (qid == null) throw new ServiceException("No qid");
-        String domain = "https://www.interactivities.ws";
-        String urlString = domain + "/" + qid + ".xhtml";
+        String urlString = assignmentService.qidURL(qid);
+        if (urlString == null) throw new ServiceException("Bad qid: " + qid);
         String document = rewriteRelativeLinks(urlString);
         document = document.replace("<head>", "<head><script>const lti = " + ltiNode.toString() + "</script>");
         return document;

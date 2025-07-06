@@ -1,0 +1,117 @@
+#!/bin/bash
+
+# This program receives as argument a zip file with a file "script"
+# in the root, a directory "in" with inputs and other directories
+# with source and auxiliary files.
+
+# The "script" file may contain the following directives:
+# prepare targetDir sourceDir sourceDir ...
+#   The target directory is created, and all source directories are
+#   copied into it, in the order given
+# compile dir language sourcefiles
+#   All source files are compiled in the given directory.
+#   language is Java, Cpp, Python, etc.--see preload.sh
+#   Compiler messages are placed in out/dir/_compile (if compilation
+#   succeeded) or in out/dir/_errors if not
+# run dir id timeout interleaveio language module arg1 arg2 ...
+#   Runs the application with the given "module" (main file without
+#   extension) and command line arguments in the given directory.
+#   Program stdout/stderr is saved in out/id/_run. timeout is the
+#   timeout in seconds. interleaveio is true if input/output should
+#   be interleaved with the interleaveio.py script, false otherwise.
+# unittest dir timeout lang mainsource source2 source3 ...
+#   Runs a unit test for the given language, with output in out/dir/_run
+# process dir command args
+#   Executes the given command in the given directory, with the given
+#   arguments. Currently, only the "CheckStyle" command is supported.
+# collect dir file1 file2 ...
+#   Collects the files from the given directory in out/dir.
+#
+# When the script completes, it zips up the contents of the
+# out directory and prints its location.
+#
+# The script instructions are executed with the user in the environment
+# variable COMRUN_USER, or the user "comrunner" if the environment
+# variable is not set.
+#
+# This program is invoked from the trivial server.js application
+# which receives a zip file with the script, sources, and auxiliary
+# files and returns a zip with the outputs.
+
+if [[ ! -e /tmp/codecheck ]] ; then
+  # This only happens outside the Docker container
+  mkdir /tmp/codecheck
+  chmod 733 /tmp/codecheck
+fi
+
+if [[ -z $COMRUN_USER ]] ; then
+  COMRUN_USER=comrunner
+fi
+
+BASEDIR=$(dirname $0)
+WORKDIR=$(mktemp -d /tmp/codecheck/workXXXXXXXXXXXXXXXXXXXX)
+chmod 777 $WORKDIR
+cd $WORKDIR
+sudo -u $COMRUN_USER unzip -q $1
+DEBUG=""
+
+cp $BASEDIR/preload.sh compile
+cp $BASEDIR/preload.sh runsolution
+cp $BASEDIR/preload.sh runsubmission
+
+while read -r LINE
+do
+  if [[ $LINE =~ ^prepare\ .* || $LINE =~ ^compile\ .* || $LINE =~ ^process\ .* || $LINE =~ ^prepare\ .* ]] ; then
+    echo $LINE >> compile
+  elif [[ $LINE =~ ^run\ solution.* || $LINE =~ ^collect\ solution.* ]] ; then
+    echo $LINE >> runsolution
+  elif [[ $LINE =~ ^run\ .* || $LINE =~ ^collect\ .* || $LINE =~ ^unittest\ .* ]] ; then
+    echo $LINE >> runsubmission
+  elif [[ $LINE =~ ^debug$ ]] ; then
+    DEBUG="true"
+    echo $WORKDIR
+  elif [[ $STAGING != "" ]] ; then
+    echo $LINE >> other
+  fi
+done < script
+
+chmod +x compile runsolution runsubmission
+
+if [[ -z $DEBUG ]] ; then
+  rm $1
+fi
+
+sudo -u $COMRUN_USER ./compile 2>&1
+sudo -u $COMRUN_USER nice -15 ./runsolution 2>&1
+if [[ -z $DEBUG ]] ; then
+  sudo -u $COMRUN_USER rm -rf solution*
+fi
+sudo -E -u $COMRUN_USER nice -15 ./runsubmission 2>&1
+
+mkdir -p out # In case there is no out
+
+if [[ $STAGING != "" ]] ; then
+  if [[ -e other ]] ; then
+    chmod +x other
+    ./other >> out/_staging 2>&1
+  else
+    # To remind of staging mode
+    touch out/_staging
+  fi
+fi
+
+
+OUTFILE=$(mktemp /tmp/codecheck/responseXXXXXXXXXXXXXXXXXXXX.zip)
+# Otherwise zip tries to read $OUTFILE
+cd out
+zip -r - . > $OUTFILE 2>/dev/null
+
+if [[ -z $DEBUG ]] ; then
+  cd /tmp/codecheck
+  rm $WORKDIR/compile $WORKDIR/runsolution $WORKDIR/runsubmission  
+  sudo -u $COMRUN_USER rm -rf $WORKDIR/*
+  rm -rf $WORKDIR
+fi
+
+echo $OUTFILE
+

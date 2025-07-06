@@ -16,7 +16,7 @@ import com.horstmann.codecheck.checker.Util;
 
 @ApplicationScoped
 public class Upload {
-    final String DEFAULT_REPO = "ext";
+    private static final String DEFAULT_REPO = "ext";
     @Inject private CodeCheck codeCheck;
 
     private Map<Path, byte[]> checkEditKey(String problem, String editKey) throws IOException {
@@ -74,7 +74,15 @@ public class Upload {
     		problem = Util.createPublicUID();
     		editKey = Util.createPrivateUID();    		            
     	} else {
-    		checkEditKey(problem, editKey); 
+    		checkEditKey(problem, editKey);
+
+            // Add any binary old file that is not deleted
+            Map<Path, byte[]> oldProblemFiles = codeCheck.loadProblem(DEFAULT_REPO, problem);
+            for (Map.Entry<Path, byte[]> entry : oldProblemFiles.entrySet()) {
+                if (problemFiles.containsKey(entry.getKey()) && !Util.isText(entry.getValue())) {
+                    problemFiles.put(entry.getKey(), entry.getValue());
+                }
+            }
     	}
     	problemFiles.put(Path.of("edit.key"), editKey.getBytes(StandardCharsets.UTF_8));    		
         StringBuilder response = new StringBuilder();
@@ -130,8 +138,15 @@ public class Upload {
             if (!List.of("_outputs", "edit.key").contains(p.getName(0).toString())) {
             	i++;
             	String name = p.toString();
-            	String contents = new String(entries.getValue(), StandardCharsets.UTF_8);
-            	result.append(filePart.formatted(i, i, i, name, i, i, i, contents));                                    
+                if (Util.isText(entries.getValue())) {
+                    String contents = new String(entries.getValue(), StandardCharsets.UTF_8);
+                    result.append(filePart.formatted(i, i, i, name, i, i, i, contents));
+                } else if (Util.isImageFilename(entries.getKey().toString())) {
+                    result.append(imageFilePart.formatted(i, i, i, name, i, i, i,
+                            Util.imageData(entries.getKey().toString(), entries.getValue())));
+                } else {
+                    result.append(binaryFilePart.formatted(i, i, i, name, i, i, i));
+                }
             }
         }
         result.append(part2.formatted(problem, editKey));
@@ -162,7 +177,26 @@ Public URL (for your students):
       <p><textarea id="contents%d" name="contents%d" rows="24" cols="80">%s</textarea></p>
     </div>    		
 """;
-    
+
+private String imageFilePart = """
+    <div id="item%d">
+      <p>File name: <input type="text" id="filename%d" name="filename%d" size="25" value="%s"/> 
+        <button id="delete%d" type="button">Delete</button>
+      </p>
+      <p><input id="contents%d" name="contents%d" value="" style="display:none"/></p>
+      <p><img src="%s"/></p>
+    </div>    		
+""";
+
+    private String binaryFilePart = """
+    <div id="item%d">
+      <p>File name: <input type="text" id="filename%d" name="filename%d" size="25" value="%s"/> (binary) 
+        <button id="delete%d" type="button">Delete</button>
+      </p>
+      <p><input id="contents%d" name="contents%d" value="" style="display:none"/></p>
+    </div>    		
+""";
+
     private String part2 = """
     <div id="addfilecontainer">Need more files? <button id="addfile" type="button">Add file</button></div>
     <div><input type="submit" value="Submit changes"/></div>

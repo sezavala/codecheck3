@@ -30,9 +30,9 @@ public class AssignmentController {
     }
 
     @GET
-    @jakarta.ws.rs.Path("/private/editAssignment/{assignmentID}/{key}")
+    @jakarta.ws.rs.Path("/private/editAssignment/{assignmentID}/{editKey}")
     @Produces(MediaType.TEXT_HTML)
-    public Response edit(@PathParam("assignmentID") String assignmentID, @PathParam("key") String key) throws IOException {
+    public Response edit(@PathParam("assignmentID") String assignmentID, @PathParam("editKey") String key) throws IOException {
         try {
             String result = assignmentService.edit(assignmentID, key);
             return Response.ok(result).build();
@@ -87,9 +87,9 @@ public class AssignmentController {
     }
 
     @GET
-    @jakarta.ws.rs.Path("/private/resume/{assignmentID}/{ccid}/{key}")
+    @jakarta.ws.rs.Path("/private/resume/{assignmentID}/{ccid}/{editKey}")
     @Produces(MediaType.TEXT_HTML)
-    public Response studentResumesWork(@PathParam("assignmentID") String assignmentID, @PathParam("ccid") String ccid, @PathParam("key") String editKey) throws IOException, GeneralSecurityException {
+    public Response studentResumesWork(@PathParam("assignmentID") String assignmentID, @PathParam("ccid") String ccid, @PathParam("editKey") String editKey) throws IOException, GeneralSecurityException {
         try {
             String prefix = HttpUtil.prefix(uriInfo, headers);
             String result = assignmentService.work(prefix, assignmentID, ccid, editKey, true /* student */, true /* editKeySaved */);
@@ -104,9 +104,9 @@ public class AssignmentController {
     }
 
     @GET
-    @jakarta.ws.rs.Path("/private/submission/{assignmentID}/{ccid}/{key}")
+    @jakarta.ws.rs.Path("/private/submission/{assignmentID}/{ccid}/{editKey}")
     @Produces(MediaType.TEXT_HTML)
-    public Response instructorViewsStudentWork(@PathParam("assignmentID") String assignmentID, @PathParam("ccid") String ccid, @PathParam("key") String editKey) throws IOException, GeneralSecurityException {
+    public Response instructorViewsStudentWork(@PathParam("assignmentID") String assignmentID, @PathParam("ccid") String ccid, @PathParam("editKey") String editKey) throws IOException, GeneralSecurityException {
         try {
             String prefix = HttpUtil.prefix(uriInfo, headers);
             String result = assignmentService.work(prefix, assignmentID, ccid, editKey, false /* student */, false /* editKeySaved */);
@@ -132,9 +132,9 @@ public class AssignmentController {
     }
 
     @GET
-    @jakarta.ws.rs.Path("/private/assignment/{assignmentID}/{key}")
+    @jakarta.ws.rs.Path("/private/assignment/{assignmentID}/{editKey}")
     @Produces(MediaType.TEXT_HTML)
-    public Response instructorViewsOwnAssignment(@PathParam("assignmentID") String assignmentID, @PathParam("key") String editKey) throws IOException, GeneralSecurityException {
+    public Response instructorViewsOwnAssignment(@PathParam("assignmentID") String assignmentID, @PathParam("editKey") String editKey) throws IOException, GeneralSecurityException {
         try {
             String prefix = HttpUtil.prefix(uriInfo, headers);
             String result = assignmentService.work(prefix, assignmentID, null /* ccid */, editKey, false /* student */, false /* editKeySaved */);
@@ -145,9 +145,9 @@ public class AssignmentController {
     }
 
     @GET
-    @jakarta.ws.rs.Path("/private/viewSubmissions/{assignmentID}/{key}")
+    @jakarta.ws.rs.Path("/private/viewSubmissions/{assignmentID}/{editKey}")
     @Produces(MediaType.TEXT_HTML)
-    public Response instructorViewsSubmissions(@PathParam("assignmentID") String assignmentID, @PathParam("key") String editKey) throws IOException, GeneralSecurityException {
+    public Response instructorViewsSubmissions(@PathParam("assignmentID") String assignmentID, @PathParam("editKey") String editKey) throws IOException, GeneralSecurityException {
         try {
             String result = assignmentService.viewSubmissions(assignmentID, editKey);
             return Response.ok(result).build();
@@ -162,6 +162,7 @@ public class AssignmentController {
     @Produces(MediaType.APPLICATION_JSON)
     public Response instructorSavesAssignment(JsonNode params) throws IOException {
         try {
+            // TODO: need edit key to authenticate instructor, add /private to URL
             String prefix = HttpUtil.prefix(uriInfo, headers);
             ObjectNode result = assignmentService.saveAssignment(prefix, params);
             return Response.ok(result).build();
@@ -176,6 +177,7 @@ public class AssignmentController {
     @Produces(MediaType.APPLICATION_JSON)
     public Response instructorSavesComment(JsonNode params) throws IOException {
         try {
+            // TODO: need edit key to authenticate instructor, add /private to URL
             ObjectNode result = assignmentService.saveComment(params);
             return Response.ok(result).build();
         } catch (ServiceException ex) {
@@ -189,6 +191,7 @@ public class AssignmentController {
     @Produces(MediaType.APPLICATION_JSON)
     public Response studentSavesWork(JsonNode params) throws IOException, NoSuchAlgorithmException {
         try {
+            // TODO: auth
             ObjectNode result = assignmentService.saveWork(params);
             return Response.ok(result).build();
         } catch (ServiceException ex) {

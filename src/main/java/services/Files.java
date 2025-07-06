@@ -18,6 +18,8 @@ import com.horstmann.codecheck.checker.Util;
 
 import controllers.Config;
 
+import javax.script.ScriptException;
+
 @ApplicationScoped
 public class Files {
     @Inject private CodeCheck codeCheck;    
@@ -51,8 +53,8 @@ public class Files {
 		</html>""";
 
     public String filesHTML2(String url, String repo, String problemName, String ccid)
-            throws IOException {
-        Map<Path, byte[]> problemFiles = getProblemFiles(repo, problemName, ccid);
+            throws IOException, ScriptException, NoSuchMethodException {
+        Map<Path, byte[]> problemFiles = codeCheck.loadProblem(repo, problemName, ccid);
         if (problemFiles == null) return null;
         if (problemFiles.containsKey(Path.of("tracer.js")))
         	return tracer(repo, problemName, ccid);
@@ -104,8 +106,8 @@ public class Files {
 </html>
 """;
     
-	public String tracer(String repo, String problemName, String ccid) throws IOException {
-        Map<Path, byte[]> problemFiles = getProblemFiles(repo, problemName, ccid);
+	public String tracer(String repo, String problemName, String ccid) throws IOException, ScriptException, NoSuchMethodException {
+        Map<Path, byte[]> problemFiles = codeCheck.loadProblem(repo, problemName, ccid);
         if (problemFiles == null) return null;
 		Problem problem = new Problem(problemFiles);
         Problem.DisplayData data = problem.getProblemData();
@@ -120,20 +122,11 @@ public class Files {
         return result.toString();
 	}
 
-    public ObjectNode fileData(String repo, String problemName, String ccid) throws IOException {
-        Map<Path, byte[]> problemFiles = getProblemFiles(repo, problemName, ccid);
+    public ObjectNode fileData(String repo, String problemName, String ccid) throws IOException, ScriptException, NoSuchMethodException {
+        Map<Path, byte[]> problemFiles = codeCheck.loadProblem(repo, problemName, ccid);
         if (problemFiles == null) return null;
         Problem problem = new Problem(problemFiles);
         return Util.toJson(problem.getProblemData());
-    }
-
-    private Map<Path, byte[]> getProblemFiles(String repo, String problemName, String ccid) {
-        try {
-            return codeCheck.loadProblem(repo, problemName, ccid);
-        } catch (Exception e) {
-            logger.log(Logger.Level.ERROR, "filesHTML2: Cannot load problem " + repo + "/" + " " + problemName, e);
-            return null;
-        }
     }
 
     private void wakeupChecker() {
@@ -150,7 +143,7 @@ public class Files {
         } }).start();
     }
 
-    // TODO: Legacy, also codecheck.js
+    /* TODO: Legacy, also codecheck.js
     private static String start = """
 		<!DOCTYPE html>
 		<html><head>
@@ -179,7 +172,7 @@ public class Files {
 
     public String filesHTML(String repo, String problemName, String ccid)
             throws IOException {
-        Map<Path, byte[]> problemFiles = getProblemFiles(repo, problemName, ccid);
+        Map<Path, byte[]> problemFiles = codeCheck.loadProblem(repo, problemName, ccid);
         if (problemFiles == null) return null;
         Problem problem = new Problem(problemFiles);
         Problem.DisplayData data = problem.getProblemData();
@@ -286,4 +279,5 @@ public class Files {
         result.append(bodyEnd);
         return result.toString();
     }
+     */
 }
