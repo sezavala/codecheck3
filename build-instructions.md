@@ -19,7 +19,7 @@ The `codecheck-webapp` program has these responsibilities:
 
 ## Special Steps for Github Codespaces
 
-Make a new Codespace by cloning the repository `cayhorstmann/codecheck3
+Make a new Codespace by cloning the repository `cayhorstmann/codecheck3`
 
 Open a terminal. Run 
 
