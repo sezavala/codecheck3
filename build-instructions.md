@@ -17,42 +17,26 @@ The `codecheck-webapp` program has these responsibilities:
 -   Manage assignments (consisting of multiple problems)
 -   Interface with learning management systems through the LTI protocol
 
-## Special Steps for Github Codespaces
+## Prepare your environment
 
-Make a new Codespace by cloning the repository `cayhorstmann/codecheck3
+If you are running Linux or Github Codespaces, you don't need to install Ubuntu 24.04. Otherwise, make yourself a virtual machine. These instructions should be helpful: https://horstmann.com/pfh/2021/vm.html (but use the Ubuntu 24.04 ISO).
 
-Open a terminal. Run 
+If you are using Codespaces, make a new codespace for the repository `cayhorstmann/codecheck3`
 
-```
-sudo sed -i -e 's/root/ALL/' /etc/sudoers.d/codespace
-sudo cat /etc/sudoers.d/codespace
-```
+## Building the Command Line Tool
 
-and verify that the contents is
-
-```
-codespace ALL=(ALL) NOPASSWD:ALL 
-```
-
-## Install Codecheck dependencies
-
-These instructions are for Ubuntu 24.04LTS. If you are not running Ubuntu natively, run it in a virtual machine. If you were asked to use Github Codespaces, that should be set up for you. Otherwise, you need to set up your own virtual machine. These instructions should be helpful: https://horstmann.com/pfh/2021/vm.html
-
-Open a terminal and install the dependencies
+Install some packages:
 
 ```
 sudo apt update
 sudo apt -y install openjdk-21-jdk maven git curl zip unzip
 ```
 
-Building the Command Line Tool
-------------------------------
-
 Clone the repo (unless you are in Codespaces, where it is already cloned)
 
     git clone https://github.com/cayhorstmann/codecheck3
 
-Get a few JAR files:
+Some housekeeping:
 
     cd codecheck3 # if not already there
     cd cli
@@ -68,6 +52,34 @@ Get a few JAR files:
     curl -LOs https://repo1.maven.org/maven2/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar
     curl -LOs https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.jar
     cd ../../..
+    mkdir -p /opt/codecheck/repo 
+        # If this fails, use sudo and give yourself ownership of /opt/codecheck and /opt/codecheck/repo
+    cp -R comrun/bin/* /opt/codecheck
+    sudo useradd -u 1012 -ms /bin/bash comrunner
+
+## Special Steps for Github Codespaces
+
+Open a terminal. Run 
+
+```
+sudo sed -i -e 's/root/ALL/' /etc/sudoers.d/codespace
+sudo cat /etc/sudoers.d/codespace
+```
+
+and verify that the contents is
+
+```
+codespace ALL=(ALL) NOPASSWD:ALL 
+```
+
+Run
+
+```
+sudo apt install acl
+sudo setfacl -PRdm u::rwx,g::rx,o::rx /tmp
+```
+
+## Building the Checker
 
 Build CodeCheck:
 
@@ -79,7 +91,7 @@ Test that the checker works:
     cli/codecheck -t samples/java/example1
 
 If you omit the `-t`, you get a report with your default browser instead
-of the text report.
+of the text report. (Only locally, not in Codespaces.)
 
 ## IntelliJ
 
@@ -103,18 +115,49 @@ Use this debugging configuration to debug the command line tool. Use the already
 
 ## Codespaces and Visual Studio Code
 
-If you use Codespaces, you need to use Visual Studio Code as your IDE. If not, skip this section and follow the section about configuring IntelliJ instead.
+If you use Codespaces, you need to use Visual Studio Code as your IDE. If not, skip this section and follow the section about configuring IntelliJ instead. 
 
 Install the Extension Pack for Java (from  vscjava), and Quarkus (from Red Hat) extensions into Visual Studio Code.
 
-TODO
+You may need to click on the teensy word "Java" in the status line and wait until it says "Java: ready". 
 
-Debugging the Command Line Tool
--------------------------------
+Click on the Run and Debug (triangle and bug) icon on the left. Select Run → Add Configuration from the menu. The file `.vscode/launch.json` is opened up. Set it to the following contents:
+
+```
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "preLaunchTask": "quarkus:dev",
+            "type": "java",
+            "request": "attach",
+            "hostName": "localhost",
+            "name": "Debug Quarkus application",
+            "port": 5005
+        },
+        {
+            "type": "java",
+            "name": "Command Line Tool",
+            "request": "launch",
+            "mainClass": "com.horstmann.codecheck.Main",
+            "args": "/tmp/submission /tmp/problem",
+            "vmArgs": [
+                "-Duser.language=en",
+                "-Duser.country=US",
+                "-Dcom.horstmann.codecheck.comrun.local=/opt/codecheck/comrun",
+                "-Dcom.horstmann.codecheck.report=text",
+                "-Dcom.horstmann.codecheck.debug"
+            ],
+            "env": { "COMRUN_USER": "codespace" }
+        }
+    ]
+}
+```
+
+## Debugging the Command Line Tool
 
 If you are making changes to the part of CodeCheck that does the actual
-code checking, such as adding a new language, and you need to run a
-debugger, it is easiest to debug the command line tool.
+code checking, such as adding a new language, it is easiest to debug the command line tool.
 
 Make directories for the submission and problem files, and populate them
 with samples. For example,
@@ -128,17 +171,9 @@ cp -R samples/java/example1 /tmp/problem
 ```
 Set a breakpoint in app/com/horstmann/codecheck/checker/Main.java and launch the debugger with the Command Line Tool configuration.
 
-Building the Server
--------------------
+## Building the Server
 
-In src/main/resources/application.properties, review
-
-com.horstmann.codecheck.storage.local=/opt/codecheck/repo
-com.horstmann.codecheck.comrun.local=/opt/codecheck/comrun
-
-You can create a directory /opt/codecheck/repo. Make sure you have write access. Or change to any directory of your choice.
-
-You can copy the codecheck3/comrun directory and its subdirectories to /opt/codecheck, or you can change the setting to the codecheck3/comrun directory.
+Review the configuration in `src/main/resources/application.properties`. (The default configuration should work if you followed all instructions.)
 
 Run the `codecheck-webapp` server:
 
@@ -150,18 +185,29 @@ Upload a problem and test it.
 Note: The problem files will be located inside the `/opt/codecheck/repo/ext`
 directory.
 
+If you do this inside CodeSpaces, you need to forward port 8080. On a good day, it will do this automatically, but on a really bad day it will offer to port 5005 instead. That's the debugger port which should not be forwarded. You can add port 8080 manually. Make sure it is *public*.
+
+When you click on the link for the port (in the Ports tab of VS Code), you get a URL such as https://friendly-engine-asdf112358-8080.app.github.dev. Unfortunately, when you click on it, CodeCheck will reroute to https://friendly-engine-asdf112358-8080.app.github.dev:8080/assets/uploadProblem.html since it senses that it runs on port 8080. You need to remove that extra :8080 from the URL. 
+
+## Debugging the Server
+
+With IntelliJ, just run the debugger. 
+
+With VS Code, hit F1 and select Quarkus: Debug current Quarkus project. If that is not available, make sure that the status line says: Java ready, or click on the word Java to kick it into action. 
+
+
 ## Podman/Docker Installation
 
 Skip this step if you are on Codespaces. Codespaces already has Docker installed.
 
 Install Podman and Podman-Docker:
+
 ```
 sudo apt-get podman podman-docker
 sudo touch /etc/containers/nodocker 
 ```
 
-Docker Local Testing
---------------------
+## Docker Local Testing
 
 Build and run the Docker container for the `comrun` service:
 
