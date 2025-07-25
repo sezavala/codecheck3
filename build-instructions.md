@@ -83,6 +83,7 @@ sudo setfacl -PRdm u::rwx,g::rx,o::rx /tmp
 
 Build CodeCheck:
 
+    cd codecheck3 # if not already there
     mvn package -Dmaven.test.skip
 
 Test that the checker works:
@@ -95,7 +96,7 @@ of the text report. (Only locally, not in Codespaces.)
 
 ## IntelliJ
 
-If you work on your own machine, I recommend the free "community" edition of IntelliJ as the IDE. If you use Codespaces, skip this section and read about the Visual Studio Code configuration instead.
+If you work on your own machine, use the free "community" edition of IntelliJ as the IDE. If you use Codespaces, skip this section and read about the Visual Studio Code configuration instead.
 
 Import the Maven project.
 
@@ -187,14 +188,13 @@ directory.
 
 If you do this inside CodeSpaces, you need to forward port 8080. On a good day, it will do this automatically, but on a really bad day it will offer to port 5005 instead. That's the debugger port which should not be forwarded. You can add port 8080 manually. Make sure it is *public*.
 
-When you click on the link for the port (in the Ports tab of VS Code), you get a URL such as https://friendly-engine-asdf112358-8080.app.github.dev. Unfortunately, when you click on it, CodeCheck will reroute to https://friendly-engine-asdf112358-8080.app.github.dev:8080/assets/uploadProblem.html since it senses that it runs on port 8080. You need to remove that extra :8080 from the URL. 
+When you click on the link for the port (in the Ports tab of Visual Studio Code), you get a URL such as https://friendly-engine-asdf112358-8080.app.github.dev. Unfortunately, when you click on it, CodeCheck will reroute to https://friendly-engine-asdf112358-8080.app.github.dev:8080/assets/uploadProblem.html since it senses that it runs on port 8080. You need to remove that extra :8080 from the URL. 
 
 ## Debugging the Server
 
 With IntelliJ, just run the debugger. 
 
-With VS Code, hit F1 and select Quarkus: Debug current Quarkus project. If that is not available, make sure that the status line says: Java ready, or click on the word Java to kick it into action. 
-
+With Visual Studio Code, hit F1 and select Quarkus: Debug current Quarkus project. If that is not available, make sure that the status line says: Java ready, or click on the word Java to kick it into action. 
 
 ## Podman/Docker Installation
 
@@ -586,8 +586,8 @@ echo Password: $PASSWORD
 aws dynamodb put-item --table-name CodeCheckLTICredentials --item '{"oauth_consumer_key":{"S":"'${USERNAME}'"},"shared_secret":{"S":"'${PASSWORD}'"}}'
 ```
 
-Play Server Deployment (AWS)
-----------------------------
+Server Deployment (AWS)
+-----------------------
 
 Make another ECR repository to store in the codecheck-webapp service. Note that you need the `ACCOUNT_ID` and `REGION` environment variables from the comrun deployment.
 
