@@ -800,7 +800,7 @@ window.addEventListener('load', async function () {
       
       // TODO: Iterate by sort order?
       for (let fileName in setup.useFiles)
-        if (useFileNames.indexOf(fileName) < 0 && !fileName.includes("_outputs/")) useFileNames.push(fileName)
+        if (useFileNames.indexOf(fileName) < 0) useFileNames.push(fileName)
       
       for (let i = 0; i < requiredFileNames.length; i++) 
         appendRequiredFile(requiredFileNames[i], directoryPrefix);      
