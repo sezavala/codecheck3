@@ -113,7 +113,7 @@ public class Problem {
         } else {
             // Solution files marked with annotation
             for (Path p : problemFiles.keySet()) {
-                if (!Util.matches(p, ".*", "*~", "*.class", "a.out", "*.pyc",  
+                if (!Util.matches(p, "_outputs/**", ".*", "*~", "*.class", "a.out", "*.pyc",
                     "index.html", "index.ch", "problem.html", 
                     "Input", "*.in", "q.properties", "check.properties",
                     "tracer.js", "param.js", "edit.key", "*.zy")) {
