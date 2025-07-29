@@ -55,6 +55,7 @@ Some housekeeping:
     mkdir -p /opt/codecheck/repo 
         # If this fails, use sudo and give yourself ownership of /opt/codecheck and /opt/codecheck/repo
     cp -R comrun/bin/* /opt/codecheck
+    chmod +x /opt/codecheck/comrun
     sudo useradd -u 1012 -ms /bin/bash comrunner
 
 ## Special Steps for Github Codespaces
@@ -88,7 +89,7 @@ Build CodeCheck:
 
 Test that the checker works:
 
-    chmod +x cli/codecheck comrun/bin/comrun
+    chmod +x cli/codecheck 
     cli/codecheck -t samples/java/example1
 
 If you omit the `-t`, you get a report with your default browser instead
