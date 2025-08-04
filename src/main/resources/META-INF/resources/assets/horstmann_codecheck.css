@@ -1,3 +1,11 @@
+
+@font-face {
+    font-family: "Mono";
+    src: url("https://horstmann.com/fonts/NotoSansMono-VariableFont_wdth,wght.ttf");
+    font-stretch: 60%;
+}
+
+
 .studentFiles, .providedFiles { 
     display: none; 
 }
@@ -92,7 +100,7 @@
 }
 
 .editor {
-    font-family: Consolas, monospace;
+    font-family: "Mono", monospace;
     font-size: 0.8em;
 }
 
