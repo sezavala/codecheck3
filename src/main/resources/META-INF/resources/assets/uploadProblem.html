@@ -15,7 +15,10 @@
     <div><input type="submit" value="Submit files"/></div>
     </div>
 </form>
-<button id="sendhello" type="button">Hello</button>
+<form method="post" action="../sendHello">
+  <input type="hidden" name="message" value="Hello" />
+  <input type="submit" value="Send Hello" />
+</form>
 <hr/>
 <form method="post" action="../uploadProblem" enctype="multipart/form-data">
 <p>Alternatively, upload a zip file: <input name="file" id="file" type="file"/></p>
@@ -49,9 +52,7 @@ document.getElementById('file').addEventListener('change', function() {
     document.getElementById('upload').disabled = document.getElementById('file').files.length === 0
 })
 
-document.getElementById('sendhello').addEventListener('click', function() {
-    console.log("Hello")
-})
+
 </script>
 </body>
 </html>

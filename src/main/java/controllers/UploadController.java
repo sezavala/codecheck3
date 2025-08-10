@@ -89,4 +89,13 @@ public class UploadController {
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(Util.getStackTrace(ex)).build();
         }
     }
+
+    @POST
+    @jakarta.ws.rs.Path("/sendHello")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    @Produces(MediaType.TEXT_PLAIN)
+    public Response sendHello(@FormParam("message") String greeting) {
+        System.out.println("Received from client: " + greeting);
+        return Response.ok("Goodbye!").build();
+    }
 }
