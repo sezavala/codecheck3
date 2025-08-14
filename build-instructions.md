@@ -67,7 +67,7 @@ sudo sed -i -e 's/root/ALL/' /etc/sudoers.d/codespace
 sudo cat /etc/sudoers.d/codespace
 ```
 
-and verify that the contents is
+and verify that the contents starts with
 
 ```
 codespace ALL=(ALL) NOPASSWD:ALL 
