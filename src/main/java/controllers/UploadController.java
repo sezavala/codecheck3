@@ -45,7 +45,6 @@ public class UploadController {
                 }
                 n++;
             }
-
             String response = uploadService.checkAndSaveProblem(HttpUtil.prefix(uriInfo, headers),
                     problem, problemFiles, editKey);
             return Response.ok(response).build();
@@ -97,5 +96,28 @@ public class UploadController {
     public Response sendHello(@FormParam("message") String greeting) {
         System.out.println("Received from client: " + greeting);
         return Response.ok("Goodbye!").build();
+    }
+
+    @POST
+    @jakarta.ws.rs.Path("/codecheck")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response codecheck(Map<String, String> params) {
+
+        System.out.println("Received from client:");
+        System.out.println(params);
+        
+        // Turn params into a multivalued map (Probably not necessary)
+        MultivaluedMap<String, String> filesMap = new MultivaluedHashMap<>();
+        for (Map.Entry<String, String> i : params.entrySet()) {
+            filesMap.add(i.getKey(), i.getValue());
+        }
+        
+        System.out.println("filesMap:");
+        System.out.println(filesMap);
+
+
+        // Return response
+        return Response.ok("Codecheck Successful!").build();
     }
 }
