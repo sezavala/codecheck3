@@ -103,21 +103,20 @@ public class UploadController {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response codecheck(Map<String, String> params) {
-
-        System.out.println("Received from client:");
-        System.out.println(params);
-        
-        // Turn params into a multivalued map (Probably not necessary)
-        MultivaluedMap<String, String> filesMap = new MultivaluedHashMap<>();
-        for (Map.Entry<String, String> i : params.entrySet()) {
-            filesMap.add(i.getKey(), i.getValue());
+        try {
+            Map<Path, byte[]> problemFiles = new TreeMap<>();
+            for (Map.Entry<String, String> i : params.entrySet()) {
+                String filename = i.getKey();
+                if (filename.trim().length() > 0) {
+                    String contents = i.getValue().replaceAll("\r\n", "\n");
+                    problemFiles.put(Path.of(filename), contents.getBytes(StandardCharsets.UTF_8));
+                }
+            }
+            String response = uploadService.checkProblem(problemFiles);
+            return Response.ok(response).build();
+        } catch (Exception ex) {
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity(Util.getStackTrace(ex)).build();
         }
-        
-        System.out.println("filesMap:");
-        System.out.println(filesMap);
-
-
-        // Return response
-        return Response.ok("Codecheck Successful!").build();
     }
 }

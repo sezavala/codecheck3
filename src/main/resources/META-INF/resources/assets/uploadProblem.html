@@ -75,6 +75,16 @@ document.getElementById("codecheck").addEventListener("click", function() {
       },
       body: JSON.stringify(jsonPayload, null, 2)
     })
+    .then(res => res.text())
+    .then(html => {
+      const iframe = document.createElement('iframe');
+      iframe.height = 400;
+      iframe.style.width = '90%';
+      iframe.style.margin = '2em';
+
+      iframe.srcdoc = html;
+      document.body.appendChild(iframe);
+    })
 });
 
 
