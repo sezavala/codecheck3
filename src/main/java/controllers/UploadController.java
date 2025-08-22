@@ -10,8 +10,16 @@ import services.Upload;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
+
+import org.aspectj.weaver.ast.Or;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 @RequestScoped
 @jakarta.ws.rs.Path("/")
@@ -102,18 +110,22 @@ public class UploadController {
     @jakarta.ws.rs.Path("/codecheck")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response codecheck(Map<String, String> params) {
+    public Response codecheck(ObjectNode params) {
         try {
+            Iterator<Map.Entry<String, JsonNode>> fields = params.fields();
             Map<Path, byte[]> problemFiles = new TreeMap<>();
-            for (Map.Entry<String, String> i : params.entrySet()) {
-                String filename = i.getKey();
-                if (filename.trim().length() > 0) {
-                    String contents = i.getValue().replaceAll("\r\n", "\n");
+            while (fields.hasNext()) {
+                Map.Entry<String, JsonNode> entry = fields.next();
+                String filename = entry.getKey();
+                if (filename.trim().length() > 0 && filename != "problemID" && filename != "editKey") {
+                    String contents = entry.getValue().asText().replaceAll("\r\n", "\n");
                     problemFiles.put(Path.of(filename), contents.getBytes(StandardCharsets.UTF_8));
                 }
             }
-            String response = uploadService.checkProblem(problemFiles);
-            return Response.ok(response).build();
+            String problemID = params.has("problemID") ? params.get("problemID").asText(null) : null;
+            String editKey = params.has("editKey") ? params.get("editKey").asText(null) : null;
+            ObjectNode responseJSON = uploadService.checkProblem(problemFiles, problemID, editKey);
+            return Response.ok(responseJSON).build();
         } catch (Exception ex) {
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                     .entity(Util.getStackTrace(ex)).build();

@@ -12,6 +12,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import javax.script.ScriptException;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.horstmann.codecheck.checker.Util;
 
 @ApplicationScoped
@@ -153,15 +155,30 @@ public class Upload {
         return result.toString();
     }
 
-    public String checkProblem(Map<Path, byte[]> problemFiles)
+    public ObjectNode checkProblem(Map<Path, byte[]> problemFiles, String problem, String editKey)
         throws IOException, InterruptedException, NoSuchMethodException, ScriptException {
-            
-        String report = codeCheck.checkAndSave(null, problemFiles);
-            String run = Base64.getEncoder().encodeToString(report.getBytes(StandardCharsets.UTF_8));
-            String response =
-                    "<br/><iframe height=\"400\" style=\"width: 90%; margin: 2em;\" src=\"data:text/html;base64," + run
-                            + "\"></iframe>";
-        return response;
+        if (problem == null) { // new problem
+    		problem = Util.createPublicUID();
+    		editKey = Util.createPrivateUID();    		            
+    	} else {
+    		checkEditKey(problem, editKey);
+
+            // Add any binary old file that is not deleted
+            Map<Path, byte[]> oldProblemFiles = codeCheck.loadProblem(DEFAULT_REPO, problem);
+            for (Map.Entry<Path, byte[]> entry : oldProblemFiles.entrySet()) {
+                if (problemFiles.containsKey(entry.getKey()) && !Util.isText(entry.getValue())) {
+                    problemFiles.put(entry.getKey(), entry.getValue());
+                }
+            }
+    	}
+        problemFiles.put(Path.of("edit.key"), editKey.getBytes(StandardCharsets.UTF_8));    		
+        codeCheck.saveProblem(DEFAULT_REPO, problem, problemFiles);
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode responseJSON = mapper.createObjectNode();
+        responseJSON.put("problemID", problem);
+        responseJSON.put("editKey", editKey);
+        responseJSON.put("report", codeCheck.checkAndSave(problem, problemFiles));
+        return responseJSON;
     }
     
     private String part1 = """

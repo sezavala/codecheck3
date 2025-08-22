@@ -22,13 +22,17 @@
 </form>
 
 <button id="codecheck" type="button">CodeCheck</button>
-
+<div id="iframe-container"></div>
 <hr/>
 <form method="post" action="../uploadProblem" enctype="multipart/form-data">
 <p>Alternatively, upload a zip file: <input name="file" id="file" type="file"/></p>
 <p><input id="upload" type="submit" value="Upload zip file"/></p></form>
+<script src="util.js" type="text/javascript"></script>
 <script type="text/javascript">
 let fileIndex = 1
+let prevResult
+let problemID = null
+let editKey = null
 
 document.getElementById('addfile').addEventListener('click',
   function() {
@@ -65,28 +69,28 @@ document.getElementById("codecheck").addEventListener("click", function() {
       fileMap.set(name, content)
       fileIndex++
     }
-
+    fileMap.set("problemID", problemID)
+    fileMap.set("editKey", editKey)
     const jsonPayload = Object.fromEntries(fileMap)
-    fetch("../codecheck", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-      },
-      body: JSON.stringify(jsonPayload, null, 2)
-    })
-    .then(res => res.text())
-    .then(html => {
-      const iframe = document.createElement('iframe');
-      iframe.height = 400;
-      iframe.style.width = '90%';
-      iframe.style.margin = '2em';
 
-      iframe.srcdoc = html;
-      document.body.appendChild(iframe);
-    })
+    postData("../codecheck", jsonPayload)
+      .then(response => {
+        problemID = response.problemID
+        editKey = response.editKey
+        if (response.report) {
+          prevResult = response;
+          const iframe = document.createElement("iframe");
+          iframe.srcdoc = response.report
+          iframe.height = 400;
+          iframe.style.width = "90%";
+          iframe.style.margin = "2em";
+          document.getElementById("iframe-container").innerHTML = "";
+          document.getElementById("iframe-container").appendChild(iframe);
+        }
+  });
+
+
 });
-
 
 </script>
 </body>
