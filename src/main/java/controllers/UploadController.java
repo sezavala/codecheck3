@@ -29,14 +29,6 @@ public class UploadController {
     @Context HttpHeaders headers;
 
     @POST
-    @jakarta.ws.rs.Path("/uploadFiles")
-    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
-    @Produces(MediaType.TEXT_HTML)
-    public Response uploadFiles(MultivaluedMap<String, String> params) {
-        return uploadFiles(null, null, params);
-    }
-
-    @POST
     @jakarta.ws.rs.Path("/editedFiles/{problem}/{editKey}")
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
     @Produces(MediaType.TEXT_HTML)
