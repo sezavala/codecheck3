@@ -90,20 +90,16 @@ public class UploadController {
     @Produces(MediaType.TEXT_HTML)
     public Response editProblem(@PathParam("problem") String problem, @PathParam("editKey") String editKey) {
         try {
-            String response = uploadService.editProblem(HttpUtil.prefix(uriInfo, headers), problem, editKey);
+            ObjectMapper mapper = new ObjectMapper();
+            ObjectNode payload = mapper.createObjectNode(); 
+            payload.put("problemID", problem);
+            payload.put("editKey", editKey);
+
+            String response = uploadService.editProblem(HttpUtil.prefix(uriInfo, headers), payload);
             return Response.ok(response).type(MediaType.TEXT_HTML).build();
         } catch (Exception ex) {
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(Util.getStackTrace(ex)).build();
         }
-    }
-
-    @POST
-    @jakarta.ws.rs.Path("/sendHello")
-    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
-    @Produces(MediaType.TEXT_PLAIN)
-    public Response sendHello(@FormParam("message") String greeting) {
-        System.out.println("Received from client: " + greeting);
-        return Response.ok("Goodbye!").build();
     }
 
     @POST
@@ -124,7 +120,8 @@ public class UploadController {
             }
             String problemID = params.has("problemID") ? params.get("problemID").asText(null) : null;
             String editKey = params.has("editKey") ? params.get("editKey").asText(null) : null;
-            ObjectNode responseJSON = uploadService.checkProblem(problemFiles, problemID, editKey);
+            ObjectNode responseJSON = uploadService.checkProblem(HttpUtil.prefix(uriInfo, headers), problemFiles, problemID, editKey);
+                        System.out.println("RESPONSE: " + responseJSON);
             return Response.ok(responseJSON).build();
         } catch (Exception ex) {
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)

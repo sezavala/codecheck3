@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Base64;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -12,9 +13,13 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import javax.script.ScriptException;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.horstmann.codecheck.checker.Util;
+
+import controllers.HttpUtil;
 
 @ApplicationScoped
 public class Upload {
@@ -128,34 +133,84 @@ public class Upload {
     /**
      * Produces a form for editing a problem.
      */
-    public String editProblem(String prefix, String problem, String editKey) throws IOException {
-        Map<Path, byte[]> problemFiles = checkEditKey(problem, editKey);
-               
-        String problemURL = createProblemURL(prefix, problem, problemFiles);
+    public String editProblem(String prefix, ObjectNode payload) throws IOException {
+        String problemID = payload.get("problemID").asText();
+        String editKey = payload.get("editKey").asText();
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode problemFilesJSON = mapper.createObjectNode(); 
+        Map<Path, byte[]> problemFilesMap = checkEditKey(problemID, editKey);
+        for (Map.Entry<Path, byte[]> entry : problemFilesMap.entrySet()) {
+            String filename = entry.getKey().toString();
+            byte[] data = entry.getValue();
+            String fileType = "";
+            if (Util.isText(data)) {
+                fileType = "text";
+            } else if (Util.isImageFilename(filename)) {
+                fileType = "image";
+            } else {
+                fileType = "binary";
+            }
+
+            ObjectNode fileData = mapper.createObjectNode();
+            if (fileType == "image" || fileType == "binary") {
+                String encoded = Base64.getEncoder().encodeToString(entry.getValue());
+                fileData.put(filename, encoded);
+            } else {
+                fileData.put(filename, new String(entry.getValue(), StandardCharsets.UTF_8));
+            }
+
+            ObjectNode metaData = mapper.createObjectNode();
+            metaData.put("fileType", fileType);
+
+            ArrayNode fileArray = mapper.createArrayNode();
+            fileArray.add(fileData); fileArray.add(metaData); 
+            problemFilesJSON.put(filename, fileArray);
+        }
+        payload.put("prevProblem", problemFilesJSON);
+        String problemURL = createProblemURL(prefix, problemID, problemFilesMap);
         StringBuilder result = new StringBuilder();
-        result.append(part1.formatted(problemURL, problemURL, problem, editKey));
-        int i = 0;
-        for (Map.Entry<Path, byte[]> entries : problemFiles.entrySet()) {
-            Path p = entries.getKey();
-            if (!List.of("_outputs", "edit.key").contains(p.getName(0).toString())) {
-            	i++;
-            	String name = p.toString();
-                if (Util.isText(entries.getValue())) {
-                    String contents = new String(entries.getValue(), StandardCharsets.UTF_8);
-                    result.append(filePart.formatted(i, i, i, name, i, i, i, contents));
-                } else if (Util.isImageFilename(entries.getKey().toString())) {
-                    result.append(imageFilePart.formatted(i, i, i, name, i, i, i,
-                            Util.imageData(entries.getKey().toString(), entries.getValue())));
-                } else {
-                    result.append(binaryFilePart.formatted(i, i, i, name, i, i, i));
+        result.append(part1.formatted(problemURL, problemURL, problemID, editKey));
+
+        JsonNode prevProblemNode = payload.path("prevProblem");
+        if (prevProblemNode.isObject()) {
+            Iterator<Map.Entry<String, JsonNode>> fields = prevProblemNode.fields();
+            int i = 1;
+            while (fields.hasNext()) {
+                Map.Entry<String, JsonNode> entry = fields.next();
+                if (List.of("_outputs", "edit.key").contains(entry.getKey().toString())) {
+                    if (fields.hasNext()) {
+                        entry = fields.next();
+                    } else {
+                        break;
+                    }     
                 }
+                String fileName = entry.getKey(); 
+                JsonNode fileArray = entry.getValue();
+                String fileContents = fileArray.get(0).get(fileName).asText();
+                String fileType = fileArray.get(1).get("fileType").asText();
+                switch (fileType) {
+                    case "text":
+                        result.append(filePart.formatted(i, i, i, fileName, i, i, i, fileContents));
+                        break;
+                    case "image":
+                            byte[] decoded = Base64.getDecoder().decode(fileContents);
+                            result.append(imageFilePart.formatted(i, i, i, fileName, i, i, i, Util.imageData(fileName, decoded)));
+                        break;
+                    case "binary":
+                        result.append(binaryFilePart.formatted(i, i, i, fileName, i, i, i));
+                        break;
+                    default:
+                        break;
+                }
+                i++;
             }
         }
-        result.append(part2.formatted(problem, editKey));
+        result.append(part2.formatted(problemID, editKey));
         return result.toString();
     }
 
-    public ObjectNode checkProblem(Map<Path, byte[]> problemFiles, String problem, String editKey)
+
+    public ObjectNode checkProblem(String prefix, Map<Path, byte[]> problemFiles, String problem, String editKey)
         throws IOException, InterruptedException, NoSuchMethodException, ScriptException {
         if (problem == null) { // new problem
     		problem = Util.createPublicUID();
@@ -178,6 +233,10 @@ public class Upload {
         responseJSON.put("problemID", problem);
         responseJSON.put("editKey", editKey);
         responseJSON.put("report", codeCheck.checkAndSave(problem, problemFiles));
+
+        responseJSON.put("problemURL", createProblemURL(prefix, problem, problemFiles));
+        String editURL = prefix + "/private/problem/" + problem + "/" + editKey;
+        responseJSON.put("editURL", editURL);
         return responseJSON;
     }
     
@@ -189,6 +248,7 @@ public class Upload {
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title>Edit Problem</title>
     <script src="/assets/editProblem.js" type="text/javascript"></script>
+    <script src="/assets/util.js" type="text/javascript"></script>
 </head>
 <body style="font-family: sans-serif;">
 Public URL (for your students): 
@@ -227,7 +287,9 @@ private String imageFilePart = """
 
     private String part2 = """
     <div id="addfilecontainer">Need more files? <button id="addfile" type="button">Add file</button></div>
-    <div><input type="submit" value="Submit changes"/></div>
+    <div><input type="button" id="codecheck" value="Submit changes"/></div><br>
+    <div id="submitdisplay" class="non-editable"></div>
+    <div id="iframe-container"></div>
     </div>
 </form>
 <p></p>

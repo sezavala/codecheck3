@@ -14,14 +14,11 @@
     <div id="addfilecontainer">Need more files? <button id="addfile" type="button">Add file</button></div>
     <div><input type="submit" value="Submit files"/></div>
     </div>
-</form>
-
-<form method="post" action="../sendHello">
-  <input type="hidden" name="message" value="Hello" />
-  <input type="submit" value="Send Hello" />
-</form>
-
-<button id="codecheck" type="button">CodeCheck</button>
+</form><br>
+<button id="codecheck" type="button">CodeCheck</button><br><br>
+<div><button id="newproblem" type="button">Start New Problem</button></div><br>
+<div id="editURL" class="non-editable"></div><br>
+<div id="studentURL" class="non-editable"></div>
 <div id="iframe-container"></div>
 <hr/>
 <form method="post" action="../uploadProblem" enctype="multipart/form-data">
@@ -60,6 +57,10 @@ document.getElementById('file').addEventListener('change', function() {
     document.getElementById('upload').disabled = document.getElementById('file').files.length === 0
 })
 
+document.getElementById("newproblem").addEventListener("click", function() {
+    window.open(window.location.href, '_blank');
+});
+
 document.getElementById("codecheck").addEventListener("click", function() {
     let fileIndex = 1;
     const fileMap = new Map()
@@ -87,9 +88,9 @@ document.getElementById("codecheck").addEventListener("click", function() {
           document.getElementById("iframe-container").innerHTML = "";
           document.getElementById("iframe-container").appendChild(iframe);
         }
+        document.getElementById("editURL").innerHTML = "Edit URL (for you only): <a href=" + response.editURL + " target=\"_blank\">" + response.editURL + "</a>"
+        document.getElementById("studentURL").innerHTML = "Public URL (for your students): <a href=" + response.problemURL + " target=\"_blank\">" + response.problemURL + "</a>"
   });
-
-
 });
 
 </script>
