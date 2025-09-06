@@ -77,15 +77,18 @@ document.getElementById("codecheck").addEventListener("click", function() {
         editKey = response.editKey
         if (response.report) {
           prevResult = response;
-          const iframe = document.createElement("iframe");
+          const iframe = document.createElement("iframe")
           iframe.srcdoc = response.report
           iframe.height = 400;
-          iframe.style.width = "90%";
-          iframe.style.margin = "2em";
-          document.getElementById("iframe-container").innerHTML = "";
-          document.getElementById("iframe-container").appendChild(iframe);
+          iframe.style.width = "90%"
+          iframe.style.margin = "2em"
+          document.getElementById("iframe-container").innerHTML = ""
+          document.getElementById("iframe-container").appendChild(iframe)
         }
-        document.getElementById("submitdisplay").innerText = "Updated Submission Successful"
+        const display = document.getElementById("submitdisplay")
+        display.innerText = "Updated Submission Successful"
+        display.style.fontWeight = "bold"
+        display.style.color = "green"
   });
 })
 

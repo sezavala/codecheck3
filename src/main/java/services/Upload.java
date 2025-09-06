@@ -67,6 +67,48 @@ public class Upload {
 
         return fixedProblemFiles;
     }
+
+    private String classifyFile(String filename, byte[] data) {
+        if (Util.isText(data)) {
+            return "text";
+        } else if (Util.isImageFilename(filename)) {
+            return "image";
+        }
+        return "binary";
+    }
+
+    private ArrayNode buildFileArray(ObjectMapper mapper, String filename, byte[] data, String fileType) {
+        ObjectNode fileData = mapper.createObjectNode();
+        if (!"text".equals(fileType)) {
+            fileData.put(filename, Base64.getEncoder().encodeToString(data));
+        } else {
+            fileData.put(filename, new String(data, StandardCharsets.UTF_8));
+        }
+
+        ObjectNode metaData = mapper.createObjectNode();
+        metaData.put("fileType", fileType);
+
+        ArrayNode fileArray = mapper.createArrayNode();
+        fileArray.add(fileData);
+        fileArray.add(metaData);
+        return fileArray;
+    }
+
+    private String renderFileBlock(int index, String fileName, String fileType, String fileContents) {
+    switch (fileType) {
+        case "text":
+            return filePart.formatted(index, index, index, fileName, index, index, index, fileContents);
+        case "image":
+            byte[] decoded = Base64.getDecoder().decode(fileContents);
+            return imageFilePart.formatted(index, index, index, fileName, index, index, index, Util.imageData(fileName, decoded));
+        case "binary":
+            return binaryFilePart.formatted(index, index, index, fileName, index, index, index);
+        default:
+            return "";
+    }
+}
+
+
     
     public String checkAndSaveProblem(String requestPrefix, String problem, byte[] problemZip, String editKey)
             throws IOException, InterruptedException, NoSuchMethodException, ScriptException {
@@ -142,29 +184,8 @@ public class Upload {
         for (Map.Entry<Path, byte[]> entry : problemFilesMap.entrySet()) {
             String filename = entry.getKey().toString();
             byte[] data = entry.getValue();
-            String fileType = "";
-            if (Util.isText(data)) {
-                fileType = "text";
-            } else if (Util.isImageFilename(filename)) {
-                fileType = "image";
-            } else {
-                fileType = "binary";
-            }
-
-            ObjectNode fileData = mapper.createObjectNode();
-            if (fileType == "image" || fileType == "binary") {
-                String encoded = Base64.getEncoder().encodeToString(entry.getValue());
-                fileData.put(filename, encoded);
-            } else {
-                fileData.put(filename, new String(entry.getValue(), StandardCharsets.UTF_8));
-            }
-
-            ObjectNode metaData = mapper.createObjectNode();
-            metaData.put("fileType", fileType);
-
-            ArrayNode fileArray = mapper.createArrayNode();
-            fileArray.add(fileData); fileArray.add(metaData); 
-            problemFilesJSON.put(filename, fileArray);
+            String fileType = classifyFile(filename, data);
+            problemFilesJSON.put(filename, buildFileArray(mapper, filename, data, fileType));
         }
         payload.put("prevProblem", problemFilesJSON);
         String problemURL = createProblemURL(prefix, problemID, problemFilesMap);
@@ -188,20 +209,7 @@ public class Upload {
                 JsonNode fileArray = entry.getValue();
                 String fileContents = fileArray.get(0).get(fileName).asText();
                 String fileType = fileArray.get(1).get("fileType").asText();
-                switch (fileType) {
-                    case "text":
-                        result.append(filePart.formatted(i, i, i, fileName, i, i, i, fileContents));
-                        break;
-                    case "image":
-                            byte[] decoded = Base64.getDecoder().decode(fileContents);
-                            result.append(imageFilePart.formatted(i, i, i, fileName, i, i, i, Util.imageData(fileName, decoded)));
-                        break;
-                    case "binary":
-                        result.append(binaryFilePart.formatted(i, i, i, fileName, i, i, i));
-                        break;
-                    default:
-                        break;
-                }
+                result.append(renderFileBlock(i, fileName, fileType, fileContents));
                 i++;
             }
         }
@@ -254,7 +262,11 @@ public class Upload {
 Public URL (for your students): 
 <a href="%s" target="_blank">%s</a>
 <form method="post" action="/editedFiles/%s/%s">
-    <div>    		
+<div>
+    <hr>
+    <a href="https://horstmann.com/codecheck/authoring.html" target="_blank">View User Guide</a>
+</div>
+    <div>		
 """;
     
     private String filePart = """
