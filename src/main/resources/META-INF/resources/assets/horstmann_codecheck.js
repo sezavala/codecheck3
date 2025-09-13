@@ -905,6 +905,15 @@ window.addEventListener('load', async function () {
       })
       submitDiv.appendChild(resetButton);
 
+      let restoreDraftButton = createButton('hc-start', _('Restore Draft'), function() {
+      let draft = JSON.parse(sessionStorage.getItem('studentDraft'))        
+        restoreState(element, draft)
+        element.correct = 0;
+        response.innerHTML = ''
+        if (downloadButton !== undefined) downloadButton.style.display = 'none'
+      })
+      submitDiv.appendChild(restoreDraftButton);
+
       if ('download' in horstmann_config) {
         downloadButton = createButton('hc-start', _('Download'), () => {
           horstmann_config.download('data:application/octet-stream;base64,' + downloadButton.data.zip, downloadButton.data.metadata.ID + '.signed.zip', 'application/octet-stream') 
@@ -975,7 +984,11 @@ window.addEventListener('load', async function () {
         }
       }
     }
-    
+
+  window.addEventListener('input', () => {
+    sessionStorage.setItem('studentDraft', JSON.stringify(getState()))
+  });
+  
     // ..................................................................
     // Start of initElement
       
@@ -1010,4 +1023,5 @@ window.addEventListener('load', async function () {
       initElement(elements[index], { url: `${origin}/checkNJS`, ...data, ...setup })
     }	                
   }
+
 });
