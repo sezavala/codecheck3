@@ -5,20 +5,15 @@ import jakarta.enterprise.context.RequestScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.*;
-import services.Upload;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
 
-import org.aspectj.weaver.ast.Or;
-
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 @RequestScoped
@@ -80,14 +75,9 @@ public class UploadController {
     @GET
     @jakarta.ws.rs.Path("/private/problem/{problem}/{editKey}")
     @Produces(MediaType.TEXT_HTML)
-    public Response editProblem(@PathParam("problem") String problem, @PathParam("editKey") String editKey) {
+    public Response editProblem(@PathParam("problem") String problemID, @PathParam("editKey") String editKey) {
         try {
-            ObjectMapper mapper = new ObjectMapper();
-            ObjectNode payload = mapper.createObjectNode(); 
-            payload.put("problemID", problem);
-            payload.put("editKey", editKey);
-
-            String response = uploadService.editProblem(HttpUtil.prefix(uriInfo, headers), payload);
+            String response = uploadService.editProblem(HttpUtil.prefix(uriInfo, headers), problemID, editKey);
             return Response.ok(response).type(MediaType.TEXT_HTML).build();
         } catch (Exception ex) {
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(Util.getStackTrace(ex)).build();
@@ -104,14 +94,14 @@ public class UploadController {
             Map<Path, byte[]> problemFiles = new TreeMap<>();
             while (fields.hasNext()) {
                 Map.Entry<String, JsonNode> entry = fields.next();
-                String filename = entry.getKey();
-                if (filename.trim().length() > 0 && filename != "problemID" && filename != "editKey") {
+                String key = entry.getKey();
+                if (key.trim().length() > 0 && key != "problemID" && key != "editKey") {
                     String contents = entry.getValue().asText().replaceAll("\r\n", "\n");
-                    problemFiles.put(Path.of(filename), contents.getBytes(StandardCharsets.UTF_8));
+                    problemFiles.put(Path.of(key), contents.getBytes(StandardCharsets.UTF_8));
                 }
             }
-            String problemID = params.has("problemID") ? params.get("problemID").asText(null) : null;
-            String editKey = params.has("editKey") ? params.get("editKey").asText(null) : null;
+            String problemID = params.get("problemID").asText(null);
+            String editKey = params.get("editKey").asText(null);
             ObjectNode responseJSON = uploadService.checkProblem(HttpUtil.prefix(uriInfo, headers), problemFiles, problemID, editKey);
             return Response.ok(responseJSON).build();
         } catch (Exception ex) {
