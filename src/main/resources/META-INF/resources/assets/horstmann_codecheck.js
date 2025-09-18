@@ -694,7 +694,7 @@ window.addEventListener('load', async function () {
     let downloadButton = undefined
     let editors = new Map()
 
-    function restoreState(state) { // TODO: Eliminate dummy
+    function restoreState(state) {
       if (state === null || state === undefined) return; // TODO Can it be null???
       let work = state.work
       if ('studentWork' in state) { // TODO: Legacy state
