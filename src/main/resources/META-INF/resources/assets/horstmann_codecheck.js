@@ -694,7 +694,7 @@ window.addEventListener('load', async function () {
     let downloadButton = undefined
     let editors = new Map()
 
-    function restoreState(dummy, state) { // TODO: Eliminate dummy
+    function restoreState(state) { // TODO: Eliminate dummy
       if (state === null || state === undefined) return; // TODO Can it be null???
       let work = state.work
       if ('studentWork' in state) { // TODO: Legacy state
@@ -730,7 +730,8 @@ window.addEventListener('load', async function () {
       if (state.hasOwnProperty('scoreText')) {
         response.textContent = 'Score: ' + state.scoreText
       }
-    }    
+    }
+    window.restoreState = restoreState
 
     function editorFor(fileName, fileSetup) {
       if ('tiles' in fileSetup)
@@ -898,21 +899,12 @@ window.addEventListener('load', async function () {
 
       
       let resetButton = createButton('hc-start', _('Reset'), function() {
-        restoreState(element, initialState)
+        restoreState(initialState)
         element.correct = 0;
         response.innerHTML = ''
         if (downloadButton !== undefined) downloadButton.style.display = 'none'
       })
       submitDiv.appendChild(resetButton);
-
-      let restoreDraftButton = createButton('hc-start', _('Restore Draft'), function() {
-      let draft = JSON.parse(sessionStorage.getItem('studentDraft'))        
-        restoreState(element, draft)
-        element.correct = 0;
-        response.innerHTML = ''
-        if (downloadButton !== undefined) downloadButton.style.display = 'none'
-      })
-      submitDiv.appendChild(restoreDraftButton);
 
       if ('download' in horstmann_config) {
         downloadButton = createButton('hc-start', _('Download'), () => {
@@ -985,9 +977,9 @@ window.addEventListener('load', async function () {
       }
     }
 
-  window.addEventListener('input', () => {
-    sessionStorage.setItem('studentDraft', JSON.stringify(getState()))
-  });
+    window.addEventListener('input', () => {
+      sessionStorage.setItem('studentDraft', JSON.stringify(getState()))
+    });
   
     // ..................................................................
     // Start of initElement
@@ -1023,5 +1015,16 @@ window.addEventListener('load', async function () {
       initElement(elements[index], { url: `${origin}/checkNJS`, ...data, ...setup })
     }	                
   }
+
+  // Restore latest draft
+  try {
+    const draft = JSON.parse(sessionStorage.getItem('studentDraft'));
+    if (draft) {
+      window.restoreState(draft);
+    }
+  } catch (e) {
+    console.warn("Failed to restore draft:", e);
+  }
+
 
 });
