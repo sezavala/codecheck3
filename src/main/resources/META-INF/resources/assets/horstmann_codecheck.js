@@ -694,7 +694,7 @@ window.addEventListener('load', async function () {
     let downloadButton = undefined
     let editors = new Map()
 
-    function restoreState(state) {
+    function restoreState(element, state) {
       if (state === null || state === undefined) return; // TODO Can it be null???
       let work = state.work
       if ('studentWork' in state) { // TODO: Legacy state
@@ -899,7 +899,7 @@ window.addEventListener('load', async function () {
 
       
       let resetButton = createButton('hc-start', _('Reset'), function() {
-        restoreState(initialState)
+        restoreState(element, initialState)
         element.correct = 0;
         response.innerHTML = ''
         if (downloadButton !== undefined) downloadButton.style.display = 'none'
@@ -1020,11 +1020,10 @@ window.addEventListener('load', async function () {
   try {
     const draft = JSON.parse(sessionStorage.getItem('studentDraft'));
     if (draft) {
-      window.restoreState(draft);
+      window.restoreState(null, draft);
     }
   } catch (e) {
     console.warn("Failed to restore draft:", e);
   }
-
 
 });
