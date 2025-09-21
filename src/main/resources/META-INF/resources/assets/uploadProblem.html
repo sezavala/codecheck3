@@ -46,7 +46,6 @@ document.getElementById('addfile').addEventListener('click',
     document.getElementById('delete' + fileIndex).addEventListener('click',
       function(e) {
         const index = e.target.id.replace('delete', '')
-        console.log("DELETING: filename" + index)
         document.getElementById('filename' + index).setAttribute('value', '')
         document.getElementById('contents' + index).innerHTML = ''
         document.getElementById('contents' + index).value = ''
