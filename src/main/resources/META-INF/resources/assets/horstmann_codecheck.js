@@ -694,7 +694,7 @@ window.addEventListener('load', async function () {
     let downloadButton = undefined
     let editors = new Map()
 
-    function restoreState(dummy, state) { // TODO: Eliminate dummy
+    function restoreState(element, state) {
       if (state === null || state === undefined) return; // TODO Can it be null???
       let work = state.work
       if ('studentWork' in state) { // TODO: Legacy state
@@ -730,7 +730,8 @@ window.addEventListener('load', async function () {
       if (state.hasOwnProperty('scoreText')) {
         response.textContent = 'Score: ' + state.scoreText
       }
-    }    
+    }
+    window.restoreState = restoreState
 
     function editorFor(fileName, fileSetup) {
       if ('tiles' in fileSetup)
@@ -975,7 +976,11 @@ window.addEventListener('load', async function () {
         }
       }
     }
-    
+
+    window.addEventListener('input', () => {
+      sessionStorage.setItem('studentDraft', JSON.stringify(getState()))
+    });
+  
     // ..................................................................
     // Start of initElement
       
@@ -1010,4 +1015,15 @@ window.addEventListener('load', async function () {
       initElement(elements[index], { url: `${origin}/checkNJS`, ...data, ...setup })
     }	                
   }
+
+  // Restore latest draft
+  try {
+    const draft = JSON.parse(sessionStorage.getItem('studentDraft'));
+    if (draft) {
+      window.restoreState(null, draft);
+    }
+  } catch (e) {
+    console.warn("Failed to restore draft:", e);
+  }
+
 });
