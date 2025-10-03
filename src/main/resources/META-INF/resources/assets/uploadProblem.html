@@ -11,8 +11,10 @@
 <a href="https://horstmann.com/codecheck/authoring.html" target="_blank">View User Guide</a>
 </div>
 <div>
+<div id="item1">
 <p>File name: <input id="filename1" name="filename1" size="25" type="text"/></p>
 <p><textarea id="contents1" name="contents1" rows="24" cols="80"></textarea></p>
+</div>
 <div id="addfilecontainer">Need more files? <button id="addfile" type="button">Add file</button></div>
 </div> <br>
 <button id="codecheck" type="button">Submit Changes</button><br><br>
@@ -33,23 +35,21 @@ let editKey = null
 
 document.getElementById('addfile').addEventListener('click',
   function() {
-    fileIndex++
+    const currIndex = ++fileIndex;
     let fileDiv = document.createElement('div')
-    fileDiv.setAttribute('id', 'item' + fileIndex)
-    fileDiv.innerHTML = '<p>File name: <input id="filename' + fileIndex + '" name="filename' + fileIndex 
-            + '" size="25" type="text"/> <button id="delete' + fileIndex 
-            +'" type="button">Delete</button></p><p><textarea id="contents' + fileIndex + '" name="contents' + fileIndex 
+    fileDiv.setAttribute('id', 'item' + currIndex)
+    fileDiv.innerHTML = '<p>File name: <input id="filename' + currIndex + '" name="filename' + currIndex 
+            + '" size="25" type="text"/> <button id="delete' + currIndex 
+            +'" type="button">Delete</button></p><p><textarea id="contents' + currIndex + '" name="contents' + currIndex 
             + '" rows="24" cols="80"/></textarea></p>'
     let addFile = document.getElementById('addfilecontainer')
     addFile.parentNode.insertBefore(fileDiv, addFile)
-    
-    document.getElementById('delete' + fileIndex).addEventListener('click',
-      function(e) {
-        const index = e.target.id.replace('delete', '')
-        document.getElementById('filename' + index).setAttribute('value', '')
-        document.getElementById('contents' + index).innerHTML = ''
-        document.getElementById('contents' + index).value = ''
-        document.getElementById('item' + index).style.display = 'none'
+
+    document.getElementById('delete' + currIndex).addEventListener('click',
+      function() {
+        document.getElementById('contents' + currIndex).innerHTML = ''
+        document.getElementById('contents' + currIndex).value = ''
+        document.getElementById('item' + currIndex).style.display = 'none'
     })
 })
 
@@ -69,7 +69,7 @@ document.getElementById("codecheck").addEventListener("click", function() {
     while(document.getElementById("filename" + fileIndex)) {
       const name = document.getElementById("filename" + fileIndex).value
       const content = document.getElementById("contents" + fileIndex).value
-      if (content) {
+      if (document.getElementById('item' + fileIndex).style.display !== 'none') {
         fileMap.set(name, content)
       }
       fileIndex++
